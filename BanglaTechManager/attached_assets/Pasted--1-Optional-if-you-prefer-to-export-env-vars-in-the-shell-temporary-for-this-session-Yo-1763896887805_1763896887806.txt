@@ -1,0 +1,71 @@
+# 1) (Optional) -- if you prefer to export env vars in the shell (temporary for this session):
+# You should instead add the following as Replit Secrets in the Replit UI for production.
+export DATABASE_URL="postgres://DB_USER:DB_PASS@DB_HOST:5432/DB_NAME"
+export JWT_SECRET="a-very-strong-random-secret-of-32+chars"
+export NODE_ENV="development"
+export PORT=3000
+
+# 2) Install dependencies
+npm install
+
+# 3) Run DB migrations / schema push (project has a db:push script per package.json)
+npm run db:push
+
+# 4) Locate any hard-coded admin credentials in the repo (so you can remove/replace them)
+# This shows files + lines that reference common demo admin identifiers
+grep -R --line-number -n "admin@dhakatech" || true
+grep -R --line-number -n "demo123" || true
+grep -R --line-number -n "if (email === 'admin@dhakatech'" || true
+
+# 5) Create a seed script that inserts a SUPERADMIN into the DB.
+# Paste the block below (it creates seed.js). Replace <demo-password> with the real demo password, or your chosen password.
+cat > seed.js <<'EOF'
+/*
+  seed.js
+  - generates bcrypt hash and inserts a tenant + a SUPERADMIN user.
+  - requires: DATABASE_URL env var set (Postgres)
+  Run: node seed.js
+*/
+const { Client } = require('pg');
+const bcrypt = require('bcrypt');
+
+(async () => {
+  try {
+    const client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
+    // Create a platform/global tenant (if you want a tenant row). Optional.
+    const tenantRes = await client.query(
+      "INSERT INTO tenants (name, tenant_code) VALUES ($1,$2) ON CONFLICT (tenant_code) DO UPDATE SET name = EXCLUDED.name RETURNING id",
+      ['Platform', 'global']
+    );
+    const tenantId = tenantRes.rows[0] ? tenantRes.rows[0].id : null;
+
+    // Replace '<demo-password>' below with your chosen password (or set via env and read process.env.ADMIN_PWD)
+    const plain = process.env.ADMIN_PWD || '<demo123>';
+    const hash = await bcrypt.hash(plain, 10);
+
+    // Insert SUPERADMIN with tenant_id = NULL (global). Adjust columns to match your users table.
+    await client.query(
+      `INSERT INTO users (email, password_hash, role, tenant_id, verified_at, is_active)
+       VALUES ($1,$2,$3,$4,now(),true)
+       ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = EXCLUDED.role`,
+      ['admin@dhakatech.com', hash, 'SUPERADMIN', null]
+    );
+
+    console.log('Seed completed — SUPERADMIN inserted/updated: admin@dhakatech.com');
+    await client.end();
+  } catch (err) {
+    console.error('Seed error:', err);
+    process.exit(1);
+  }
+})();
+EOF
+
+# 6) Run the seed file (it will insert/overwrite the admin user in users table)
+# Optionally set ADMIN_PWD in the same shell before running to control the seeded password:
+export ADMIN_PWD="demo123"
+node seed.js
+
+# 7) Start the dev server (use the script from package.json)
+npm run dev

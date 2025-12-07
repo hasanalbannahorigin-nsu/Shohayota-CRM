@@ -1,0 +1,6 @@
+﻿{
+  "appId": "com.shohayota.app",
+  "appName": "Shohayota",
+  "webDir": "dist/public",
+  "bundledWebRuntime": false
+}

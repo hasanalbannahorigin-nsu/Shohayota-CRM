@@ -1,0 +1,209 @@
+Add Customer Management
+
+What to add:
+
+Customer creation, editing, listing
+
+Bangladeshi phone number format
+
+Email validation
+
+Address and company name
+
+How to add:
+
+Create customers table
+
+Add CRUD APIs
+
+Add frontend form and customer detail view
+
+6. Add Full-Text Search
+
+What to add:
+
+Global search for customers, tickets, and messages
+
+Search bar in the top navigation
+
+How to add:
+
+Backend search API
+
+Apply search indexes
+
+Connect UI search box with backend API
+
+7. Add Dashboard Analytics
+
+What to show:
+
+Total customers
+
+Open tickets
+
+Resolved tickets
+
+High priority tickets
+
+Average resolution time
+
+Customer growth
+
+Agent performance
+
+How to add:
+
+Create “/stats/overview” API
+
+Aggregate ticket and customer data
+
+Display results in the analytics page
+
+8. Add Real-Time Notifications (WebSocket)
+
+What to add:
+
+Real-time ticket updates
+
+Real-time chat messaging
+
+Toast notifications for ticket assignment or status change
+
+How to add:
+
+Initialize WebSocket server
+
+Emit events when ticket or message is created
+
+Listen for events on the frontend
+
+9. Add Email Notification System
+
+What to add:
+
+Email when a ticket is created
+
+Email when a ticket is assigned
+
+Password reset emails
+
+How to add:
+
+Connect email provider (SendGrid or others)
+
+Add email service on backend
+
+Trigger emails on specific actions
+
+10. Add File Upload Support
+
+What to add:
+
+Tenant logo upload
+
+User profile picture
+
+Ticket attachments
+
+How to add:
+
+Add file storage system
+
+Store file URLs in database
+
+Add file upload UI
+
+11. Add Error Handling + Input Validation
+
+What to add:
+
+Unified API error messages
+
+Validation for all inputs
+
+Proper unauthorized and forbidden errors
+
+How to add:
+
+Create a global error handler
+
+Use validation library for request bodies
+
+Show error notification on frontend
+
+12. Add Security Features for Production
+
+What to add:
+
+Rate limiting for login
+
+CORS restrictions
+
+Secure headers
+
+Proper logging system
+
+How to add:
+
+Add security middleware
+
+Only allow trusted frontend domains
+
+Add rate limit for login routes
+
+13. Add Bangladesh Sample Data (Seed Data)
+
+What to include:
+
+100 Bangladeshi customers
+
+100–150 sample tickets
+
+Demo admin user
+
+Demo tenant data
+
+How to add:
+
+Create seed script
+
+Populate database with sample data
+
+14. Add Voice Command (Optional Feature from PRD)
+
+What to add:
+
+Voice input button
+
+Commands like:
+
+“Show open tickets”
+
+“Search customer Rahim”
+
+How to add:
+
+Integrate speech-to-text
+
+Parse commands on backend
+
+Trigger appropriate API calls
+
+15. Add Settings Module
+
+What to add:
+
+Tenant settings
+
+User profile settings
+
+Change password
+
+Notification preferences
+
+How to add:
+
+Add settings API
+
+Add settings page in frontend

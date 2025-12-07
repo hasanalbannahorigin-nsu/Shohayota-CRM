@@ -1,0 +1,155 @@
+2. Add User Roles (RBAC)
+
+What to add:
+
+Roles: SUPER_ADMIN, TENANT_ADMIN, AGENT, CUSTOMER
+
+Access control based on role
+
+How to add:
+
+Add a “role” field to users
+
+Create role-check middleware
+
+Restrict sensitive endpoints (create user, update tenant settings, delete ticket)
+
+3. Add JWT Login + Refresh Token System
+
+What to add:
+
+Login should return Access Token
+
+Refresh Token should generate new Access Tokens
+
+Logout should invalidate refresh tokens
+
+How to add:
+
+Create refresh token table
+
+Add endpoint for “/auth/refresh”
+
+Add token expiration handling
+
+4. Add Complete Ticket Management System
+
+What to add:
+
+Ticket creation
+
+Title, description, category
+
+Priority: Low, Medium, High
+
+Status: Open, In-Progress, Closed
+
+Assign agent
+
+Ticket comments
+
+How to add:
+
+Create ticket table and comment table
+
+Add ticket API endpoints
+
+Add ticket detail page + comments UI
+
+5. Add Customer Management
+
+What to add:
+
+Customer creation, editing, listing
+
+Bangladeshi phone number format
+
+Email validation
+
+Address and company name
+
+How to add:
+
+Create customers table
+
+Add CRUD APIs
+
+Add frontend form and customer detail view
+
+6. Add Full-Text Search
+
+What to add:
+
+Global search for customers, tickets, and messages
+
+Search bar in the top navigation
+
+How to add:
+
+Backend search API
+
+Apply search indexes
+
+Connect UI search box with backend API
+
+7. Add Dashboard Analytics
+
+What to show:
+
+Total customers
+
+Open tickets
+
+Resolved tickets
+
+High priority tickets
+
+Average resolution time
+
+Customer growth
+
+Agent performance
+
+How to add:
+
+Create “/stats/overview” API
+
+Aggregate ticket and customer data
+
+Display results in the analytics page
+
+8. Add Real-Time Notifications (WebSocket)
+
+What to add:
+
+Real-time ticket updates
+
+Real-time chat messaging
+
+Toast notifications for ticket assignment or status change
+
+How to add:
+
+Initialize WebSocket server
+
+Emit events when ticket or message is created
+
+Listen for events on the frontend
+
+9. Add Email Notification System
+
+What to add:
+
+Email when a ticket is created
+
+Email when a ticket is assigned
+
+Password reset emails
+
+How to add:
+
+Connect email provider (SendGrid or others)
+
+Add email service on backend
+
+Trigger emails on specific actions
