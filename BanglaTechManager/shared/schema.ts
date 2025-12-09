@@ -676,6 +676,26 @@ export const revokedTokens = pgTable("revoked_tokens", {
   expiresAt: timestamp("expires_at").notNull(), // Original token expiry
 });
 
+// MCP (Master Control Plane) Tables
+export const mcpAuditLogs = pgTable("mcp_audit_logs", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  actorId: varchar("actor_id", { length: 36 }).references(() => users.id).onDelete("set null"),
+  actorRole: varchar("actor_role", { length: 50 }).notNull(),
+  action: varchar("action", { length: 100 }).notNull(),
+  targetTenantId: varchar("target_tenant_id", { length: 36 }).references(() => tenants.id).onDelete("set null"),
+  payload: jsonb("payload").$type<Record<string, any>>().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const tenantFeatureFlags = pgTable("tenant_feature_flags", {
+  tenantId: varchar("tenant_id", { length: 36 }).references(() => tenants.id).onDelete("cascade").notNull(),
+  flagKey: varchar("flag_key", { length: 100 }).notNull(),
+  enabled: boolean("enabled").default(false).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  pk: unique().on(table.tenantId, table.flagKey),
+}));
+
 // Insert schemas for RBAC tables
 export const insertPermissionSchema = createInsertSchema(permissions).omit({
   id: true,
@@ -1255,3 +1275,20 @@ export type InsertIntegrationMapping = z.infer<typeof insertIntegrationMappingSc
 
 export type IntegrationLog = typeof integrationLogs.$inferSelect;
 export type InsertIntegrationLog = z.infer<typeof insertIntegrationLogSchema>;
+
+// Insert schemas for MCP tables
+export const insertMcpAuditLogSchema = createInsertSchema(mcpAuditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTenantFeatureFlagSchema = createInsertSchema(tenantFeatureFlags).omit({
+  updatedAt: true,
+});
+
+// Types for MCP tables
+export type McpAuditLog = typeof mcpAuditLogs.$inferSelect;
+export type InsertMcpAuditLog = z.infer<typeof insertMcpAuditLogSchema>;
+
+export type TenantFeatureFlag = typeof tenantFeatureFlags.$inferSelect;
+export type InsertTenantFeatureFlag = z.infer<typeof insertTenantFeatureFlagSchema>;

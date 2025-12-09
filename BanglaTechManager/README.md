@@ -21,6 +21,7 @@ A production-ready, multi-tenant Customer Relationship Management (CRM) system b
 - **Analytics Dashboard**: Metrics for customer growth and agent performance
 - **Security Middleware**: Rate limiting, security headers, CORS protection
 - **Bangladeshi Support**: Phone validation, names, and formats
+- **Master Control Plane (MCP)**: Platform administration console for tenant management, provisioning, metrics, and feature flags
 
 ### 🛡️ Security
 - Bcrypt password hashing (10 rounds)

@@ -33,6 +33,10 @@ import CallDetailPage from "@/pages/call-detail";
 import IntegrationsPage from "@/pages/integrations";
 import IntegrationMappingPage from "@/pages/integration-mapping";
 import CustomerDashboardPage from "@/pages/customer-dashboard";
+import McpLayout from "@/pages/mcp/McpLayout";
+import TenantsList from "@/pages/mcp/TenantsList";
+import TenantDetail from "@/pages/mcp/TenantDetail";
+import NewTenantForm from "@/pages/mcp/NewTenantForm";
 
 function Router() {
   return (
@@ -57,6 +61,13 @@ function Router() {
       <Route path="/calls/detail" component={CallDetailPage} />
       <Route path="/integrations" component={IntegrationsPage} />
       <Route path="/integrations/mapping" component={IntegrationMappingPage} />
+      {/* MCP Routes */}
+      <Route path="/mcp" component={McpLayout}>
+        <Route path="/tenants" component={TenantsList} />
+        <Route path="/tenants/:tenantId" component={TenantDetail} />
+        <Route path="/new-tenant" component={NewTenantForm} />
+        <Route path="/jobs" component={() => <div className="p-6"><h1 className="text-2xl font-bold">Background Jobs</h1><p className="text-muted-foreground mt-2">Job listing not yet implemented</p></div>} />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -107,12 +118,15 @@ function AuthenticatedApp() {
 function App() {
   const [location] = useLocation();
   const isLoginPage = useMemo(() => location === "/login", [location]);
+  const isMcpPage = useMemo(() => location.startsWith("/mcp"), [location]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {isLoginPage ? (
           <LoginPage />
+        ) : isMcpPage ? (
+          <Router />
         ) : (
           <AuthenticatedApp />
         )}
