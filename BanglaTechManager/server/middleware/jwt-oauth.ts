@@ -4,12 +4,59 @@
  * This middleware validates JWT tokens from an OIDC issuer (e.g., Keycloak)
  * using JWKS (JSON Web Key Set) for public key verification.
  * 
- * Environment Variables Required:
- * - OAUTH_ISSUER: The OIDC issuer URL (e.g., http://localhost:8080/realms/your-realm)
- * - OAUTH_CLIENT_ID: The client ID to validate as the audience
+ * SETUP INSTRUCTIONS:
+ * ===================
  * 
- * Alternative: If using local RS256 JWT verification:
- * - JWT_PUBLIC_KEY: PEM-encoded public key for RS256 verification
+ * 1. KEYCLOAK DOCKER SETUP (Recommended for local development):
+ *    - See docs/KEYCLOAK_SETUP.md for complete Docker Compose setup
+ *    - Run: docker-compose -f docker-compose.keycloak.yml up -d
+ *    - Access: http://localhost:8080 (admin/admin)
+ * 
+ * 2. CREATE KEYCLOAK REALM:
+ *    - Login to Keycloak Admin Console
+ *    - Create new realm: "shohayota-crm" (or your preferred name)
+ * 
+ * 3. CREATE KEYCLOAK CLIENT:
+ *    - Client ID: "shohayota-crm-client" (this becomes OAUTH_CLIENT_ID)
+ *    - Client Type: OpenID Connect
+ *    - Valid Redirect URIs: http://localhost:5000/* (dev) or https://your-domain.com/* (prod)
+ *    - Web Origins: http://localhost:5000 (dev) or https://your-domain.com (prod)
+ *    - Client Authentication: On (for confidential client) or Off (for public)
+ * 
+ * 4. CONFIGURE TOKEN MAPPERS:
+ *    - Add "tenant_id" mapper (User Attribute):
+ *      * User Attribute: tenant_id
+ *      * Token Claim Name: tenant_id
+ *      * Add to access token: ON
+ *    - Add "roles" mapper (User Realm Role):
+ *      * Token Claim Name: roles
+ *      * Add to access token: ON
+ * 
+ * 5. SET ENVIRONMENT VARIABLES:
+ *    - OAUTH_ISSUER=http://localhost:8080/realms/shohayota-crm
+ *    - OAUTH_CLIENT_ID=shohayota-crm-client
+ * 
+ * ALTERNATIVE: Local RS256 JWT Verification
+ * ==========================================
+ * If you prefer to use local JWT verification instead of Keycloak:
+ * 
+ * 1. Generate RSA key pair:
+ *    openssl genrsa -out private.pem 2048
+ *    openssl rsa -in private.pem -pubout -out public.pem
+ * 
+ * 2. Set environment variable:
+ *    JWT_PUBLIC_KEY="$(cat public.pem)"
+ * 
+ * 3. The middleware will automatically use local JWT when JWT_PUBLIC_KEY is set
+ *    and OAUTH_ISSUER is not set.
+ * 
+ * USAGE:
+ * ======
+ * The authenticate() function in server/auth.ts automatically uses this middleware
+ * when OAUTH_ISSUER and OAUTH_CLIENT_ID are configured. No code changes needed
+ * in your routes - it's a drop-in replacement.
+ * 
+ * For more details, see: docs/KEYCLOAK_SETUP.md
  */
 
 import { Request, Response, NextFunction } from "express";
@@ -194,9 +241,10 @@ export function authenticateJWT(
     // Use local JWT middleware
     localJwtMiddleware()(req, res, next);
   } else {
-    // Fallback: no JWT configuration, return error
-    res.status(500).json({ 
-      error: "JWT authentication not configured. Set OAUTH_ISSUER/OAUTH_CLIENT_ID or JWT_PUBLIC_KEY" 
+    // Fallback: no OAuth2/local JWT configured, but this shouldn't happen
+    // as the authenticate() function in auth.ts handles the fallback to local JWT
+    res.status(401).json({ 
+      error: "Authentication required" 
     });
   }
 }

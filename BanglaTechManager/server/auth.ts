@@ -74,11 +74,30 @@ export function revokeRefreshToken(token: string): void {
 }
 
 // Middleware to authenticate requests
+// Supports both OAuth2/Keycloak JWT (via authenticateJWT) and local JWT tokens
 export async function authenticate(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
+  // Check if OAuth2/Keycloak is configured
+  const OAUTH_ISSUER = process.env.OAUTH_ISSUER;
+  const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID;
+  const JWT_PUBLIC_KEY = process.env.JWT_PUBLIC_KEY;
+  
+  // If OAuth2 is configured, use OAuth2 middleware
+  if (OAUTH_ISSUER && OAUTH_CLIENT_ID) {
+    const { authenticateJWT } = await import("./middleware/jwt-oauth");
+    return authenticateJWT(req, res, next);
+  }
+  
+  // If local JWT public key is configured, use local JWT middleware
+  if (JWT_PUBLIC_KEY) {
+    const { localJwtMiddleware } = await import("./middleware/jwt-oauth");
+    return localJwtMiddleware()(req, res, next);
+  }
+  
+  // Fallback to local JWT with SESSION_SECRET (existing behavior)
   const authHeader = req.headers.authorization;
   const token = authHeader?.split(" ")[1]; // Bearer <token>
 

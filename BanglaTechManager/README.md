@@ -25,6 +25,8 @@ A production-ready, multi-tenant Customer Relationship Management (CRM) system b
 ### 🛡️ Security
 - Bcrypt password hashing (10 rounds)
 - JWT token expiration and refresh
+- **OAuth2/Keycloak Integration**: Support for OIDC JWT verification via JWKS
+- **Local RS256 JWT**: Alternative JWT verification with public key
 - Login rate limiting (5 attempts per 15 minutes)
 - Security headers (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection)
 - CORS configuration
@@ -187,7 +189,22 @@ NODE_ENV=development
 PORT=5000
 ADMIN_PASSWORD=demo123
 FRONTEND_URL=http://localhost:5000
+
+# OAuth2/Keycloak Configuration (Optional)
+OAUTH_ISSUER=http://localhost:8080/realms/your-realm
+OAUTH_CLIENT_ID=your-client-id
+
+# Alternative: Local RS256 JWT Verification
+JWT_PUBLIC_KEY=-----BEGIN PUBLIC KEY-----...
 ```
+
+### OAuth2/Keycloak Setup
+
+For OAuth2 authentication with Keycloak, see [docs/KEYCLOAK_SETUP.md](./docs/KEYCLOAK_SETUP.md) for complete setup instructions including:
+- Docker Compose configuration
+- Keycloak realm and client setup
+- Token mapper configuration
+- Environment variable setup
 
 ## Security Checklist
 
