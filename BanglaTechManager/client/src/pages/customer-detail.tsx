@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Phone, Mail, Building, Tag, Clock, Ticket, PhoneCall } from "lucide-react";
+import { ArrowLeft, Phone, Mail, Building, Clock, Ticket, PhoneCall } from "lucide-react";
 import { format } from "date-fns";
 import { api } from "@/lib/api";
 import type { Customer } from "@shared/schema";
@@ -238,25 +238,6 @@ export default function CustomerDetailPage() {
             </CardContent>
           </Card>
 
-          {customer.tags && Array.isArray(customer.tags) && customer.tags.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Tag className="h-4 w-4" />
-                  Tags
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2 flex-wrap">
-                  {customer.tags.map((tag, i) => (
-                    <Badge key={i} variant="outline">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </div>

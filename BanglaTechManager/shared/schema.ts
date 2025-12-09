@@ -18,10 +18,9 @@ export const messageDirectionEnum = pgEnum("message_direction", ["inbound", "out
 export const messageTypeEnum = pgEnum("message_type", ["message", "internal_note"]);
 export const ticketTypeEnum = pgEnum("ticket_type", ["issue", "request", "question", "complaint"]);
 export const ticketChannelEnum = pgEnum("ticket_channel", ["email", "phone", "whatsapp", "telegram", "chat", "api", "ui"]);
-export const slaStateEnum = pgEnum("sla_state", ["on_track", "at_risk", "breached"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["email", "sms", "telegram", "in_app"]);
 export const tenantStatusEnum = pgEnum("tenant_status", ["active", "trialing", "suspended", "canceled", "deleted"]);
-export const auditActionEnum = pgEnum("audit_action", ["create", "update", "delete", "login", "logout", "impersonate", "export", "import", "quota_exceeded", "quota_warning", "permission_denied", "role_assign", "role_revoke", "invite_create", "invite_accept", "invite_revoke", "mfa_setup", "mfa_verify", "mfa_disable", "password_reset", "session_revoke"]);
+export const auditActionEnum = pgEnum("audit_action", ["create", "update", "delete", "login", "logout", "impersonate", "export", "import", "quota_exceeded", "quota_warning", "permission_denied", "role_assign", "role_revoke", "password_reset", "session_revoke"]);
 
 // Tenants table - Enhanced with lifecycle, configuration, and quotas
 export const tenants = pgTable("tenants", {
@@ -53,7 +52,7 @@ export const tenants = pgTable("tenants", {
   deletedAt: timestamp("deleted_at"), // Soft delete
 });
 
-// Users table - Enhanced with MFA and active status
+// Users table - Enhanced with active status
 export const users = pgTable("users", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id", { length: 36 }).references(() => tenants.id).notNull(),
@@ -64,10 +63,6 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").default(true).notNull(),
   // Customer relationship - if role is "customer", this links to customers table
   customerId: varchar("customer_id", { length: 36 }).references(() => customers.id),
-  // MFA fields
-  mfaEnabled: boolean("mfa_enabled").default(false).notNull(),
-  mfaSecret: varchar("mfa_secret", { length: 255 }), // Encrypted TOTP secret
-  mfaBackupCodes: jsonb("mfa_backup_codes").$type<string[]>().default([]), // Hashed backup codes
   // Metadata
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -94,8 +89,6 @@ export const customers = pgTable("customers", {
   status: customerStatusEnum("status").default("active").notNull(),
   // Custom fields (tenant-defined schema stored as JSONB)
   customFields: jsonb("custom_fields").$type<Record<string, any>>().default({}),
-  // Tags (stored as array, linked via junction table)
-  tags: jsonb("tags").$type<string[]>().default([]), // Array of tag IDs
   // Metadata
   createdBy: varchar("created_by", { length: 36 }).references(() => users.id),
   userId: varchar("user_id", { length: 36 }).references(() => users.id), // Link to user account if customer has login
@@ -121,13 +114,8 @@ export const tickets = pgTable("tickets", {
   status: ticketStatusEnum("status").default("new").notNull(),
   priority: ticketPriorityEnum("priority").default("medium").notNull(),
   channel: ticketChannelEnum("channel").default("ui").notNull(),
-  // Tags and labels
-  tags: jsonb("tags").$type<string[]>().default([]), // Array of tag IDs
+  // Labels
   labels: jsonb("labels").$type<string[]>().default([]), // Array of label names
-  // SLA tracking
-  slaPolicyId: varchar("sla_policy_id", { length: 36 }).references(() => slaPolicies.id),
-  slaDeadline: timestamp("sla_deadline"), // Calculated deadline
-  slaState: slaStateEnum("sla_state").default("on_track"),
   // Custom fields
   customFields: jsonb("custom_fields").$type<Record<string, any>>().default({}),
   // Ticket linking
@@ -527,39 +515,7 @@ export type InsertTenantRole = z.infer<typeof insertTenantRoleSchema>;
 
 // ==================== Feature 3: CRM Core Entities ====================
 
-// Tags / Labels table - Tenant-scoped tags for customers and tickets
-export const tags = pgTable("tags", {
-  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-  tenantId: varchar("tenant_id", { length: 36 }).references(() => tenants.id).notNull(),
-  name: varchar("name", { length: 100 }).notNull(),
-  color: varchar("color", { length: 7 }).default("#3b82f6"), // Hex color code
-  category: varchar("category", { length: 50 }), // customer, ticket, or both
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  uniqueTenantTag: unique().on(table.tenantId, table.name),
-}));
 
-// SLA Policies table - Tenant-defined SLA rules
-export const slaPolicies = pgTable("sla_policies", {
-  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-  tenantId: varchar("tenant_id", { length: 36 }).references(() => tenants.id).notNull(),
-  name: varchar("name", { length: 100 }).notNull(),
-  description: text("description"),
-  // Rules stored as JSONB (e.g., priority-based deadlines, business hours)
-  rules: jsonb("rules").$type<{
-    priority?: { low?: number; medium?: number; high?: number }; // Minutes
-    businessHours?: { start: string; end: string; timezone: string };
-    escalation?: { atRiskMinutes?: number; breachMinutes?: number };
-  }>().notNull(),
-  targetResolutionMinutes: integer("target_resolution_minutes").notNull(),
-  escalationFlow: jsonb("escalation_flow").$type<{
-    onBreach?: { notifyAssignee?: boolean; escalateToManager?: boolean; autoClose?: boolean };
-    onAtRisk?: { notifyAssignee?: boolean };
-  }>().default({}),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
 
 // Activity / Timeline Entry table - Unified activity feed
 export const activities = pgTable("activities", {
@@ -590,16 +546,7 @@ export const ticketAssignments = pgTable("ticket_assignments", {
 });
 
 // Insert schemas for new tables
-export const insertTagSchema = createInsertSchema(tags).omit({
-  id: true,
-  createdAt: true,
-});
 
-export const insertSlaPolicySchema = createInsertSchema(slaPolicies).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 
 export const insertActivitySchema = createInsertSchema(activities).omit({
   id: true,
@@ -614,11 +561,7 @@ export const insertTicketAssignmentSchema = createInsertSchema(ticketAssignments
 });
 
 // Types for new tables
-export type Tag = typeof tags.$inferSelect;
-export type InsertTag = z.infer<typeof insertTagSchema>;
 
-export type SlaPolicy = typeof slaPolicies.$inferSelect;
-export type InsertSlaPolicy = z.infer<typeof insertSlaPolicySchema>;
 
 export type Activity = typeof activities.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
@@ -709,20 +652,6 @@ export const teamRoles = pgTable("team_roles", {
   pk: unique().on(table.teamId, table.roleId),
 }));
 
-// Invite Tokens table - For user invitations
-export const inviteTokens = pgTable("invite_tokens", {
-  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-  tenantId: varchar("tenant_id", { length: 36 }).references(() => tenants.id).notNull(),
-  email: varchar("email", { length: 150 }).notNull(),
-  roleId: varchar("role_id", { length: 36 }).references(() => roles.id),
-  tokenHash: varchar("token_hash", { length: 255 }).notNull(), // Hashed token
-  expiresAt: timestamp("expires_at").notNull(),
-  createdBy: varchar("created_by", { length: 36 }).references(() => users.id).notNull(),
-  used: boolean("used").default(false).notNull(),
-  usedAt: timestamp("used_at"),
-  usedBy: varchar("used_by", { length: 36 }).references(() => users.id), // User who accepted invite
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
 // Sessions table - For token/session revocation
 export const sessions = pgTable("sessions", {
@@ -786,13 +715,6 @@ export const insertTeamRoleSchema = createInsertSchema(teamRoles).omit({
   assignedAt: true,
 });
 
-export const insertInviteTokenSchema = createInsertSchema(inviteTokens).omit({
-  id: true,
-  createdAt: true,
-  used: true,
-  usedAt: true,
-  usedBy: true,
-});
 
 export const insertSessionSchema = createInsertSchema(sessions).omit({
   id: true,
@@ -831,8 +753,6 @@ export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
 export type TeamRole = typeof teamRoles.$inferSelect;
 export type InsertTeamRole = z.infer<typeof insertTeamRoleSchema>;
 
-export type InviteToken = typeof inviteTokens.$inferSelect;
-export type InsertInviteToken = z.infer<typeof insertInviteTokenSchema>;
 
 export type Session = typeof sessions.$inferSelect;
 export type InsertSession = z.infer<typeof insertSessionSchema>;
@@ -953,50 +873,6 @@ export const botMessages = pgTable("bot_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Knowledge Base Documents table
-export const kbDocuments = pgTable("kb_documents", {
-  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-  tenantId: varchar("tenant_id", { length: 36 }).references(() => tenants.id).notNull(),
-  // Document metadata
-  title: varchar("title", { length: 255 }).notNull(),
-  content: text("content").notNull(), // Full document text
-  summary: text("summary"), // Auto-generated summary
-  category: varchar("category", { length: 100 }),
-  tags: jsonb("tags").$type<string[]>().default([]),
-  // Source tracking
-  sourceType: varchar("source_type", { length: 50 }).default("manual"), // "manual", "import", "auto"
-  sourceUrl: varchar("source_url", { length: 500 }),
-  attachmentId: varchar("attachment_id", { length: 36 }), // Link to file if uploaded
-  // Embedding & indexing
-  embedded: boolean("embedded").default(false), // Whether embeddings created
-  embeddingModel: varchar("embedding_model", { length: 100 }),
-  // Access control
-  isPublic: boolean("is_public").default(false), // Public KB article
-  // Versioning
-  version: integer("version").default(1),
-  previousVersionId: varchar("previous_version_id", { length: 36 }),
-  // Metadata
-  createdBy: varchar("created_by", { length: 36 }).references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  deletedAt: timestamp("deleted_at"), // Soft delete
-});
-
-// KB Embeddings table - Vector embeddings for RAG
-export const kbEmbeddings = pgTable("kb_embeddings", {
-  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-  tenantId: varchar("tenant_id", { length: 36 }).references(() => tenants.id).notNull(),
-  documentId: varchar("document_id", { length: 36 }).references(() => kbDocuments.id).notNull(),
-  // Embedding data
-  passageText: text("passage_text").notNull(), // Text chunk that was embedded
-  passageStart: integer("passage_start"), // Character offset in document
-  passageEnd: integer("passage_end"),
-  // Vector storage (stored as JSON array, actual vector DB integration handled separately)
-  embedding: jsonb("embedding").$type<number[]>(), // Embedding vector (or reference to vector DB)
-  embeddingModel: varchar("embedding_model", { length: 100 }).notNull(),
-  // Metadata
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
 // AI Summaries table - Generated summaries for calls, tickets, conversations
 export const aiSummaries = pgTable("ai_summaries", {
@@ -1078,39 +954,6 @@ export const aiOperationLogs = pgTable("ai_operation_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// AI Settings table - Per-tenant AI configuration
-export const aiSettings = pgTable("ai_settings", {
-  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-  tenantId: varchar("tenant_id", { length: 36 }).references(() => tenants.id).notNull().unique(),
-  // Feature toggles
-  transcriptionEnabled: boolean("transcription_enabled").default(false),
-  nluEnabled: boolean("nlu_enabled").default(false),
-  botEnabled: boolean("bot_enabled").default(false),
-  ragEnabled: boolean("rag_enabled").default(false),
-  nlqEnabled: boolean("nlq_enabled").default(false),
-  assistEnabled: boolean("assist_enabled").default(false),
-  // Model configuration
-  defaultModelProvider: aiModelProviderEnum("default_model_provider").default("openai"),
-  defaultModelName: varchar("default_model_name", { length: 100 }).default("gpt-4"),
-  embeddingModel: varchar("embedding_model", { length: 100 }).default("text-embedding-ada-002"),
-  // Cost controls
-  dailyCostCap: integer("daily_cost_cap"), // Cents per day
-  monthlyCostCap: integer("monthly_cost_cap"), // Cents per month
-  currentDailyCost: integer("current_daily_cost").default(0),
-  currentMonthlyCost: integer("current_monthly_cost").default(0),
-  costResetDate: timestamp("cost_reset_date").defaultNow(),
-  // Privacy & compliance
-  piiRedactionEnabled: boolean("pii_redaction_enabled").default(false),
-  consentRequired: boolean("consent_required").default(false),
-  allowExternalModels: boolean("allow_external_models").default(true), // Opt-out of third-party APIs
-  dataRetentionDays: integer("data_retention_days").default(90),
-  // Rate limiting
-  rateLimitPerMinute: integer("rate_limit_per_minute").default(60),
-  rateLimitPerHour: integer("rate_limit_per_hour").default(1000),
-  // Metadata
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  updatedBy: varchar("updated_by", { length: 36 }).references(() => users.id),
-});
 
 // Insert schemas for AI tables
 export const insertTranscriptSchema = createInsertSchema(transcripts).omit({
@@ -1136,18 +979,6 @@ export const insertBotMessageSchema = createInsertSchema(botMessages).omit({
   createdAt: true,
 });
 
-export const insertKbDocumentSchema = createInsertSchema(kbDocuments).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  version: true,
-  previousVersionId: true,
-});
-
-export const insertKbEmbeddingSchema = createInsertSchema(kbEmbeddings).omit({
-  id: true,
-  createdAt: true,
-});
 
 export const insertAiSummarySchema = createInsertSchema(aiSummaries).omit({
   id: true,
@@ -1166,13 +997,6 @@ export const insertAiOperationLogSchema = createInsertSchema(aiOperationLogs).om
   createdAt: true,
 });
 
-export const insertAiSettingsSchema = createInsertSchema(aiSettings).omit({
-  id: true,
-  updatedAt: true,
-  currentDailyCost: true,
-  currentMonthlyCost: true,
-  costResetDate: true,
-});
 
 // Types for AI tables
 export type Transcript = typeof transcripts.$inferSelect;
@@ -1187,11 +1011,6 @@ export type InsertBotSession = z.infer<typeof insertBotSessionSchema>;
 export type BotMessage = typeof botMessages.$inferSelect;
 export type InsertBotMessage = z.infer<typeof insertBotMessageSchema>;
 
-export type KbDocument = typeof kbDocuments.$inferSelect;
-export type InsertKbDocument = z.infer<typeof insertKbDocumentSchema>;
-
-export type KbEmbedding = typeof kbEmbeddings.$inferSelect;
-export type InsertKbEmbedding = z.infer<typeof insertKbEmbeddingSchema>;
 
 export type AiSummary = typeof aiSummaries.$inferSelect;
 export type InsertAiSummary = z.infer<typeof insertAiSummarySchema>;
@@ -1202,8 +1021,6 @@ export type InsertAiActionSuggestion = z.infer<typeof insertAiActionSuggestionSc
 export type AiOperationLog = typeof aiOperationLogs.$inferSelect;
 export type InsertAiOperationLog = z.infer<typeof insertAiOperationLogSchema>;
 
-export type AiSettings = typeof aiSettings.$inferSelect;
-export type InsertAiSettings = z.infer<typeof insertAiSettingsSchema>;
 
 // ==================== Feature 7: Third-Party Integrations & Connector Framework ====================
 

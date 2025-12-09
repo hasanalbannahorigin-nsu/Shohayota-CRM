@@ -22,13 +22,9 @@ import { getTenantMetrics, checkThresholds, getTenantAlerts, acknowledgeAlert, g
 import { validateTicketReferences, validateMessageReferences, validatePhoneCallReferences, validateTicketUpdateReferences, ensureTenantIdFromContext } from "./tenant-validation-service";
 import { encryptCredentials, decryptCredentials } from "./encryption-service";
 import { registerUserRoutes } from "./routes/users";
-import { registerInviteRoutes } from "./routes/invites";
-import { registerMFARoutes } from "./routes/mfa";
 import { registerTeamRoutes } from "./routes/teams";
 import { registerRoleRoutes } from "./routes/roles";
 import { registerAIRoutes } from "./routes/ai";
-import { registerSLARoutes } from "./routes/sla";
-import { registerTagsRoutes } from "./routes/tags";
 import { registerTelephonyRoutes } from "./routes/telephony";
 import { registerConnectorRoutes } from "./routes/connectors";
 import { registerVerificationRoutes } from "./verification-routes";
@@ -2865,13 +2861,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== Register RBAC Routes ====================
   registerUserRoutes(app);
-  registerInviteRoutes(app);
-  registerMFARoutes(app);
   registerTeamRoutes(app);
   registerRoleRoutes(app);
   registerAIRoutes(app);
-  registerSLARoutes(app);
-  registerTagsRoutes(app);
   registerTelephonyRoutes(app);
   registerConnectorRoutes(app);
   registerVerificationRoutes(app);

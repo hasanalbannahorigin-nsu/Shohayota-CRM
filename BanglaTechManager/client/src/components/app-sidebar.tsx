@@ -15,12 +15,7 @@ import {
   FileText,
   Activity,
   UserCog,
-  UserPlus,
-  Key,
-  Tag,
-  Clock,
   Plug,
-  Server,
 } from "lucide-react";
 import {
   Sidebar,
@@ -109,56 +104,9 @@ const menuItems = [
     roles: ["tenant_admin", "super_admin"],
   },
   {
-    title: "Invites",
-    url: "/invites",
-    icon: UserPlus,
-    roles: ["tenant_admin", "super_admin"],
-  },
-  {
-    title: "MFA Setup",
-    url: "/mfa",
-    icon: Key,
-  },
-  {
-    title: "Tags",
-    url: "/tags",
-    icon: Tag,
-    roles: ["tenant_admin", "support_agent", "super_admin"],
-  },
-  {
-    title: "SLA Policies",
-    url: "/sla",
-    icon: Clock,
-    roles: ["tenant_admin", "super_admin"],
-  },
-  {
     title: "Integrations",
     url: "/integrations",
     icon: Plug,
-    roles: ["tenant_admin", "super_admin"],
-  },
-  {
-    title: "MCP Server",
-    url: "/mcp-server",
-    icon: Server,
-    roles: ["tenant_admin", "super_admin"],
-  },
-  {
-    title: "AI Settings",
-    url: "/ai-settings",
-    icon: Brain,
-    roles: ["tenant_admin", "super_admin"],
-  },
-  {
-    title: "Knowledge Base",
-    url: "/knowledge-base",
-    icon: FileText,
-    roles: ["tenant_admin", "support_agent", "super_admin"],
-  },
-  {
-    title: "AI Logs",
-    url: "/ai-logs",
-    icon: Activity,
     roles: ["tenant_admin", "super_admin"],
   },
   {

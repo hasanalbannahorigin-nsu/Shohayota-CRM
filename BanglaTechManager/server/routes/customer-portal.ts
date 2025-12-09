@@ -449,35 +449,6 @@ export function registerCustomerPortalRoutes(app: Express) {
     }
   });
 
-  // Knowledge base search (stub)
-  app.get("/api/customers/me/kb", authenticate, requireCustomer, ensureJsonResponse, async (req, res) => {
-    try {
-      const query = (req.query.q as string) || "";
-      
-      // Stub implementation - return empty or seeded articles
-      const articles = [
-        {
-          id: "1",
-          title: "How to create a support ticket",
-          content: "You can create a support ticket by clicking the 'New Ticket' button...",
-          category: "Getting Started",
-        },
-        {
-          id: "2",
-          title: "How to track your ticket status",
-          content: "You can view all your tickets in the 'My Tickets' section...",
-          category: "Tickets",
-        },
-      ].filter((article) =>
-        query ? article.title.toLowerCase().includes(query.toLowerCase()) : true
-      );
-
-      res.json({ articles, query });
-    } catch (error: any) {
-      console.error("Error searching KB:", error);
-      res.status(500).json({ error: "Failed to search knowledge base" });
-    }
-  });
 
   // Serve uploaded files
   app.get("/api/files/:fileId", authenticate, requireCustomer, async (req, res) => {

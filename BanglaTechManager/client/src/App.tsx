@@ -26,20 +26,12 @@ import NotificationsPage from "@/pages/notifications";
 import TenantSettingsPage from "@/pages/tenant-settings";
 import SettingsPage from "@/pages/settings";
 import SuperAdminPage from "@/pages/super-admin";
-import AISettingsPage from "@/pages/ai-settings";
-import KnowledgeBasePage from "@/pages/knowledge-base";
-import AILogsPage from "@/pages/ai-logs";
 import RolesManagementPage from "@/pages/roles-management";
 import TeamsManagementPage from "@/pages/teams-management";
-import InvitesManagementPage from "@/pages/invites-management";
-import MFASetupPage from "@/pages/mfa-setup";
 import CustomerDetailPage from "@/pages/customer-detail";
 import CallDetailPage from "@/pages/call-detail";
-import TagsManagementPage from "@/pages/tags-management";
-import SLAManagementPage from "@/pages/sla-management";
 import IntegrationsPage from "@/pages/integrations";
 import IntegrationMappingPage from "@/pages/integration-mapping";
-import MCPServerPage from "@/pages/mcp-server";
 import CustomerDashboardPage from "@/pages/customer-dashboard";
 
 function Router() {
@@ -59,20 +51,12 @@ function Router() {
       <Route path="/tenant-settings" component={TenantSettingsPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/super-admin" component={SuperAdminPage} />
-      <Route path="/ai-settings" component={AISettingsPage} />
-      <Route path="/knowledge-base" component={KnowledgeBasePage} />
-      <Route path="/ai-logs" component={AILogsPage} />
       <Route path="/roles" component={RolesManagementPage} />
       <Route path="/teams" component={TeamsManagementPage} />
-      <Route path="/invites" component={InvitesManagementPage} />
-      <Route path="/mfa" component={MFASetupPage} />
       <Route path="/customers/detail" component={CustomerDetailPage} />
       <Route path="/calls/detail" component={CallDetailPage} />
-      <Route path="/tags" component={TagsManagementPage} />
-      <Route path="/sla" component={SLAManagementPage} />
       <Route path="/integrations" component={IntegrationsPage} />
       <Route path="/integrations/mapping" component={IntegrationMappingPage} />
-      <Route path="/mcp-server" component={MCPServerPage} />
       <Route component={NotFound} />
     </Switch>
   );

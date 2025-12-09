@@ -6,8 +6,6 @@
 import { AIServiceBase } from "./ai-service-base";
 import { db } from "../db";
 import { storage } from "../storage";
-import { aiSettings } from "@shared/schema";
-import { eq } from "drizzle-orm";
 
 export interface PIIPattern {
   type: "ssn" | "credit_card" | "phone" | "email" | "ip_address";
@@ -146,21 +144,11 @@ export class AIPrivacyService extends AIServiceBase {
 
   /**
    * Enable/disable PII redaction
+   * NOTE: AI Settings feature removed - no-op
    */
   async setPIIRedaction(tenantId: string, enabled: boolean): Promise<void> {
-    if (!db) {
-      const memStorage = storage as any;
-      const settings = memStorage.aiSettings?.get(tenantId);
-      if (settings) {
-        settings.piiRedactionEnabled = enabled;
-      }
-      return;
-    }
-
-    await db
-      .update(aiSettings)
-      .set({ piiRedactionEnabled: enabled })
-      .where(eq(aiSettings.tenantId, tenantId));
+    // PII redaction setting disabled
+    return;
   }
 }
 

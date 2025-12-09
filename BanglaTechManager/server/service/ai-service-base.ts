@@ -5,7 +5,7 @@
 
 import { db } from "../db";
 import { storage } from "../storage";
-import { aiSettings, aiOperationLogs, type AiSettings, type InsertAiOperationLog } from "@shared/schema";
+import { aiOperationLogs, type InsertAiOperationLog } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -43,97 +43,33 @@ export interface AIOperationResult {
 export class AIServiceBase {
   /**
    * Get tenant AI settings
+   * NOTE: AI Settings feature removed - returns null
    */
-  async getTenantSettings(tenantId: string): Promise<AiSettings | null> {
-    if (!db) {
-      // In-memory mode
-      const memStorage = storage as any;
-      return memStorage.aiSettings?.get(tenantId) || null;
-    }
-
-    const [settings] = await db
-      .select()
-      .from(aiSettings)
-      .where(eq(aiSettings.tenantId, tenantId))
-      .limit(1);
-
-    return settings || null;
+  async getTenantSettings(tenantId: string): Promise<null> {
+    return null;
   }
 
   /**
    * Get or create default AI settings for tenant
+   * NOTE: AI Settings feature removed - returns null
    */
-  async ensureTenantSettings(tenantId: string): Promise<AiSettings> {
-    const existing = await this.getTenantSettings(tenantId);
-    if (existing) return existing;
-
-    // Create default settings
-    const defaultSettings: Partial<AiSettings> = {
-      tenantId,
-      transcriptionEnabled: false,
-      nluEnabled: false,
-      botEnabled: false,
-      ragEnabled: false,
-      nlqEnabled: false,
-      assistEnabled: false,
-      defaultModelProvider: "openai",
-      defaultModelName: "gpt-4",
-      embeddingModel: "text-embedding-ada-002",
-      allowExternalModels: true,
-      piiRedactionEnabled: false,
-      consentRequired: false,
-      dataRetentionDays: 90,
-      rateLimitPerMinute: 60,
-      rateLimitPerHour: 1000,
-    };
-
-    if (!db) {
-      // In-memory mode
-      const memStorage = storage as any;
-      if (!memStorage.aiSettings) memStorage.aiSettings = new Map();
-      const settings = { id: crypto.randomUUID(), ...defaultSettings } as AiSettings;
-      memStorage.aiSettings.set(tenantId, settings);
-      return settings;
-    }
-
-    const [settings] = await db
-      .insert(aiSettings)
-      .values(defaultSettings as any)
-      .returning();
-
-    return settings;
+  async ensureTenantSettings(tenantId: string): Promise<null> {
+    return null;
   }
 
   /**
    * Check if feature is enabled for tenant
+   * NOTE: AI Settings feature removed - always returns true
    */
-  async isFeatureEnabled(tenantId: string, feature: keyof AiSettings): Promise<boolean> {
-    const settings = await this.getTenantSettings(tenantId);
-    if (!settings) return false;
-    return settings[feature] === true;
+  async isFeatureEnabled(tenantId: string, feature: string): Promise<boolean> {
+    return true; // All features enabled by default
   }
 
   /**
    * Check cost caps and rate limits
+   * NOTE: AI Settings feature removed - always allows
    */
   async checkCostAndRateLimit(tenantId: string, estimatedCost: number = 0): Promise<{ allowed: boolean; reason?: string }> {
-    const settings = await this.getTenantSettings(tenantId);
-    if (!settings) {
-      return { allowed: false, reason: "AI settings not configured" };
-    }
-
-    // Check daily cost cap
-    if (settings.dailyCostCap && settings.currentDailyCost + estimatedCost > settings.dailyCostCap) {
-      return { allowed: false, reason: "Daily cost cap exceeded" };
-    }
-
-    // Check monthly cost cap
-    if (settings.monthlyCostCap && settings.currentMonthlyCost + estimatedCost > settings.monthlyCostCap) {
-      return { allowed: false, reason: "Monthly cost cap exceeded" };
-    }
-
-    // TODO: Implement rate limiting checks (per minute/hour)
-
     return { allowed: true };
   }
 
@@ -179,48 +115,22 @@ export class AIServiceBase {
 
   /**
    * Update cost tracking for tenant
+   * NOTE: AI Settings feature removed - no-op
    */
   async updateCostTracking(tenantId: string, cost: number): Promise<void> {
-    if (!db) {
-      // In-memory mode - cost tracking would be in settings
-      const memStorage = storage as any;
-      const settings = memStorage.aiSettings?.get(tenantId);
-      if (settings) {
-        settings.currentDailyCost = (settings.currentDailyCost || 0) + cost;
-        settings.currentMonthlyCost = (settings.currentMonthlyCost || 0) + cost;
-      }
-      return;
-    }
-
-    await db
-      .update(aiSettings)
-      .set({
-        currentDailyCost: sql`current_daily_cost + ${cost}`,
-        currentMonthlyCost: sql`current_monthly_cost + ${cost}`,
-      })
-      .where(eq(aiSettings.tenantId, tenantId));
+    // Cost tracking disabled
+    return;
   }
 
   /**
    * Get model configuration for tenant
+   * NOTE: AI Settings feature removed - returns default config
    */
   async getModelConfig(tenantId: string, operationType?: string): Promise<AIModelConfig | null> {
-    const settings = await this.getTenantSettings(tenantId);
-    if (!settings) return null;
-
-    // Check if external models are allowed
-    if (!settings.allowExternalModels && settings.defaultModelProvider !== "local") {
-      return {
-        provider: "local",
-        modelName: "local-model",
-      };
-    }
-
+    // Return default OpenAI config
     return {
-      provider: settings.defaultModelProvider as any,
-      modelName: settings.defaultModelName,
-      // API keys would be stored encrypted in integration credentials
-      // For now, return config without keys
+      provider: "openai",
+      modelName: "gpt-4",
     };
   }
 
@@ -233,12 +143,11 @@ export class AIServiceBase {
 
   /**
    * Validate tenant has feature enabled
+   * NOTE: AI Settings feature removed - always allows
    */
-  async validateFeatureAccess(tenantId: string, feature: keyof AiSettings): Promise<void> {
-    const enabled = await this.isFeatureEnabled(tenantId, feature);
-    if (!enabled) {
-      throw new Error(`AI feature ${feature} is not enabled for this tenant`);
-    }
+  async validateFeatureAccess(tenantId: string, feature: string): Promise<void> {
+    // All features enabled by default
+    return;
   }
 }
 

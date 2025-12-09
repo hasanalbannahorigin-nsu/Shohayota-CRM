@@ -11,19 +11,13 @@ import { TranscriptionService } from "../service/transcription-service";
 import { NLUService } from "../service/nlu-service";
 import { BotService } from "../service/bot-service";
 import { AgentAssistService } from "../service/agent-assist-service";
-import { RAGService } from "../service/rag-service";
 import { NLQService } from "../service/nlq-service";
-import { AIServiceBase } from "../service/ai-service-base";
-import { AISettingsService } from "../service/ai-settings-service";
 
 const transcriptionService = new TranscriptionService();
 const nluService = new NLUService();
 const botService = new BotService();
 const assistService = new AgentAssistService();
-const ragService = new RAGService();
 const nlqService = new NLQService();
-const aiServiceBase = new AIServiceBase();
-const aiSettingsService = new AISettingsService();
 
 export function registerAIRoutes(app: Express): void {
   // ==================== Transcription ====================
@@ -172,57 +166,6 @@ export function registerAIRoutes(app: Express): void {
     }
   );
 
-  // ==================== AI Settings ====================
-
-  /**
-   * GET /api/ai/settings
-   * Get tenant AI settings
-   */
-  app.get(
-    "/api/ai/settings",
-    authenticate,
-    authorize([PERMISSIONS.TENANT_READ]),
-    async (req: Request, res: Response) => {
-      try {
-        const tenantId = req.user!.tenantId;
-        const settings = await aiServiceBase.getTenantSettings(tenantId);
-        if (!settings) {
-          // Create default settings
-          const defaultSettings = await aiServiceBase.ensureTenantSettings(tenantId);
-          return res.json(defaultSettings);
-        }
-        res.json(settings);
-      } catch (error: any) {
-        res.status(400).json({ error: error.message });
-      }
-    }
-  );
-
-  /**
-   * PUT /api/ai/settings
-   * Update tenant AI settings
-   */
-  app.put(
-    "/api/ai/settings",
-    authenticate,
-    authorize([PERMISSIONS.TENANT_UPDATE]),
-    async (req: Request, res: Response) => {
-      try {
-        const tenantId = req.user!.tenantId;
-        const updates = req.body;
-        const userId = req.user!.id;
-
-        // Ensure settings exist
-        await aiServiceBase.ensureTenantSettings(tenantId);
-
-        // Update settings
-        const updated = await aiSettingsService.updateSettings(tenantId, updates, userId);
-        res.json(updated);
-      } catch (error: any) {
-        res.status(400).json({ error: error.message });
-      }
-    }
-  );
 
   // ==================== Bot / Conversational ====================
 
@@ -408,186 +351,6 @@ export function registerAIRoutes(app: Express): void {
     }
   );
 
-  // ==================== RAG & Knowledge Base ====================
-
-  /**
-   * POST /api/ai/rag/query
-   * Query knowledge base with RAG
-   */
-  app.post(
-    "/api/ai/rag/query",
-    authenticate,
-    authorize([PERMISSIONS.TICKETS_READ]),
-    async (req: Request, res: Response) => {
-      try {
-        const { question, maxResults, minRelevance } = req.body;
-        const tenantId = req.user!.tenantId;
-        const userId = req.user!.id;
-
-        if (!question) {
-          return res.status(400).json({ error: "question is required" });
-        }
-
-        const result = await ragService.query(tenantId, question, {
-          maxResults,
-          minRelevance,
-          userId,
-        });
-
-        res.json(result);
-      } catch (error: any) {
-        res.status(400).json({ error: error.message });
-      }
-    }
-  );
-
-  /**
-   * POST /api/ai/kb/documents
-   * Add document to knowledge base
-   */
-  app.post(
-    "/api/ai/kb/documents",
-    authenticate,
-    authorize([PERMISSIONS.TENANT_UPDATE]),
-    async (req: Request, res: Response) => {
-      try {
-        const { title, content, category, tags, sourceType, sourceUrl, attachmentId } = req.body;
-        const tenantId = req.user!.tenantId;
-        const userId = req.user!.id;
-
-        if (!title || !content) {
-          return res.status(400).json({ error: "title and content are required" });
-        }
-
-        const docId = await ragService.addDocument(
-          tenantId,
-          {
-            title,
-            content,
-            category,
-            tags,
-            sourceType,
-            sourceUrl,
-            attachmentId,
-          },
-          userId
-        );
-
-        res.json({ id: docId, message: "Document added. Embeddings will be created asynchronously." });
-      } catch (error: any) {
-        res.status(400).json({ error: error.message });
-      }
-    }
-  );
-
-  /**
-   * GET /api/ai/kb/documents
-   * List knowledge base documents
-   */
-  app.get(
-    "/api/ai/kb/documents",
-    authenticate,
-    authorize([PERMISSIONS.TICKETS_READ]),
-    async (req: Request, res: Response) => {
-      try {
-        const tenantId = req.user!.tenantId;
-        const { category, limit } = req.query;
-
-        const documents = await ragService.listDocuments(tenantId, {
-          category: category as string,
-          limit: limit ? Number(limit) : undefined,
-        });
-
-        res.json({ documents });
-      } catch (error: any) {
-        res.status(400).json({ error: error.message });
-      }
-    }
-  );
-
-  /**
-   * GET /api/ai/kb/documents/:id
-   * Get knowledge base document
-   */
-  app.get(
-    "/api/ai/kb/documents/:id",
-    authenticate,
-    authorize([PERMISSIONS.TICKETS_READ]),
-    async (req: Request, res: Response) => {
-      try {
-        const { id } = req.params;
-        const tenantId = req.user!.tenantId;
-
-        const document = await ragService.getDocument(id, tenantId);
-        if (!document) {
-          return res.status(404).json({ error: "Document not found" });
-        }
-
-        res.json(document);
-      } catch (error: any) {
-        res.status(400).json({ error: error.message });
-      }
-    }
-  );
-
-  /**
-   * PUT /api/ai/kb/documents/:id
-   * Update knowledge base document
-   */
-  app.put(
-    "/api/ai/kb/documents/:id",
-    authenticate,
-    authorize([PERMISSIONS.TENANT_UPDATE]),
-    async (req: Request, res: Response) => {
-      try {
-        const { id } = req.params;
-        const { title, content, category, tags } = req.body;
-        const tenantId = req.user!.tenantId;
-        const userId = req.user!.id;
-
-        if (!title || !content) {
-          return res.status(400).json({ error: "title and content are required" });
-        }
-
-        const document = await ragService.updateDocument(id, tenantId, {
-          title,
-          content,
-          category,
-          tags: Array.isArray(tags) ? tags : (tags ? tags.split(",").map((t: string) => t.trim()).filter(Boolean) : []),
-        }, userId);
-
-        if (!document) {
-          return res.status(404).json({ error: "Document not found" });
-        }
-
-        res.json(document);
-      } catch (error: any) {
-        res.status(400).json({ error: error.message });
-      }
-    }
-  );
-
-  /**
-   * DELETE /api/ai/kb/documents/:id
-   * Delete knowledge base document
-   */
-  app.delete(
-    "/api/ai/kb/documents/:id",
-    authenticate,
-    authorize([PERMISSIONS.TENANT_UPDATE]),
-    async (req: Request, res: Response) => {
-      try {
-        const { id } = req.params;
-        const tenantId = req.user!.tenantId;
-
-        await ragService.deleteDocument(id, tenantId);
-        res.json({ success: true });
-      } catch (error: any) {
-        res.status(400).json({ error: error.message });
-      }
-    }
-  );
-
   // ==================== NLQ (Natural Language Query) ====================
 
   /**
@@ -654,28 +417,5 @@ export function registerAIRoutes(app: Express): void {
     }
   );
 
-  // ==================== AI Logs ====================
-
-  /**
-   * GET /api/ai/logs
-   * Get tenant AI operation logs
-   */
-  app.get(
-    "/api/ai/logs",
-    authenticate,
-    authorize([PERMISSIONS.TENANT_READ]),
-    async (req: Request, res: Response) => {
-      try {
-        const tenantId = req.user!.tenantId;
-        const { limit = 50, offset = 0, operationType } = req.query;
-
-        // TODO: Implement log retrieval from aiOperationLogs table
-        // For now, return empty array
-        res.json({ logs: [], total: 0, limit: Number(limit), offset: Number(offset) });
-      } catch (error: any) {
-        res.status(400).json({ error: error.message });
-      }
-    }
-  );
 }
 
