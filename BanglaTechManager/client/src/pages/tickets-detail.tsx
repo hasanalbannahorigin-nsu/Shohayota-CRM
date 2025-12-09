@@ -262,7 +262,7 @@ export default function TicketDetailPage() {
                           </p>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {msg.content}
+                          {msg.body}
                         </p>
                       </div>
                     </div>
@@ -319,11 +319,14 @@ export default function TicketDetailPage() {
                 <SelectTrigger data-testid="select-status">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
               </Select>
             </CardContent>
           </Card>
@@ -385,11 +388,11 @@ export default function TicketDetailPage() {
           <AgentAssistPane
             ticketId={ticketId}
             customerId={ticket.customerId || undefined}
-            messages={messages.map((msg) => ({
-              role: msg.senderId === user?.id ? "agent" : "user",
-              content: msg.content,
-              timestamp: new Date(msg.timestamp),
-            }))}
+              messages={messages.map((msg) => ({
+                role: msg.senderId === user?.id ? "agent" : "user",
+                content: msg.body,
+                timestamp: new Date(msg.timestamp),
+              }))}
             onSuggestionAccepted={(suggestion) => {
               if (suggestion.type === "reply") {
                 setNewComment(suggestion.content);

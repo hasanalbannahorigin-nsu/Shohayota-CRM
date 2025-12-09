@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { initializeStorage } from "./init-storage";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
 
 const app = express();
 
@@ -50,6 +51,61 @@ app.use((req, res, next) => {
 (async () => {
   await initializeStorage();
   const server = await registerRoutes(app);
+  
+  // Ensure all customer accounts exist after routes are registered
+  // This runs after a delay to allow storage to be fully initialized
+  setTimeout(async () => {
+    try {
+      const memStorage = storage as any;
+      const allCustomers = Array.from(memStorage.customers?.values() || []);
+      
+      if (allCustomers.length > 0) {
+        console.log(`\n🔍 [STARTUP] Verifying ${allCustomers.length} customer accounts...`);
+        let created = 0;
+        let skipped = 0;
+        
+        for (const customer of allCustomers) {
+          try {
+            const existingUser = await storage.getUserByEmail(customer.email);
+            
+            if (existingUser && existingUser.role === "customer" && 
+                (existingUser as any).customerId === customer.id && 
+                existingUser.passwordHash) {
+              skipped++;
+              continue;
+            }
+
+            // Create or fix user account
+            if (existingUser && (existingUser.role !== "customer" || 
+                (existingUser as any).customerId !== customer.id || 
+                !existingUser.passwordHash)) {
+              memStorage.users.delete(existingUser.id);
+            }
+
+            await storage.createCustomerUser(
+              customer.tenantId,
+              customer.id,
+              customer.email,
+              "demo123",
+              customer.name
+            );
+            created++;
+          } catch (error) {
+            // Continue
+          }
+        }
+        
+        if (created > 0) {
+          console.log(`✅ [STARTUP] Created ${created} customer accounts (${skipped} already exist)`);
+        } else {
+          console.log(`✅ [STARTUP] All ${skipped} customer accounts verified`);
+        }
+        console.log(`📧 Customer login: Use any customer email with password: demo123\n`);
+      }
+    } catch (error) {
+      console.error("[STARTUP] Error verifying customer accounts:", error);
+    }
+  }, 3000);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

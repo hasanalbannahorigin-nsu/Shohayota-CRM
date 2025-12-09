@@ -99,6 +99,98 @@ export class NotificationService {
     }
     return successCount;
   }
+
+  /**
+   * Notify agent(s) when customer sends a message
+   */
+  async onMessageCreated(ticket: any, message: any): Promise<void> {
+    try {
+      const assignee = ticket.assigneeId ? await storage.getUser(ticket.assigneeId) : null;
+      
+      if (assignee && assignee.tenantId === ticket.tenantId) {
+        // Notify assigned agent
+        await this.sendNotification({
+          tenantId: ticket.tenantId,
+          customerId: ticket.customerId,
+          title: "New message from customer",
+          content: `Customer sent a new message in ticket: ${ticket.title}`,
+          type: "in_app",
+        });
+      } else {
+        // Notify tenant admins of unassigned ticket message
+        const tenantAdmins = await storage.getUsersByTenant(ticket.tenantId);
+        const admins = tenantAdmins.filter((u: any) => u.role === "tenant_admin");
+        for (const admin of admins) {
+          await this.sendNotification({
+            tenantId: ticket.tenantId,
+            customerId: ticket.customerId,
+            title: "New message in unassigned ticket",
+            content: `Customer sent a new message in unassigned ticket: ${ticket.title}`,
+            type: "in_app",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error notifying on message created:", error);
+    }
+  }
+
+  /**
+   * Notify agent(s) when customer requests a call
+   */
+  async onCallRequested(callRequest: any): Promise<void> {
+    try {
+      const assignee = callRequest.assigneeId ? await storage.getUser(callRequest.assigneeId) : null;
+      
+      if (assignee && assignee.tenantId === callRequest.tenantId) {
+        // Notify assigned agent
+        await this.sendNotification({
+          tenantId: callRequest.tenantId,
+          customerId: callRequest.customerId || "",
+          title: "Call request from customer",
+          content: `Customer has requested a call${callRequest.ticketId ? ` for ticket ${callRequest.ticketId}` : ""}`,
+          type: "in_app",
+        });
+      } else {
+        // Notify tenant admins
+        const tenantAdmins = await storage.getUsersByTenant(callRequest.tenantId);
+        const admins = tenantAdmins.filter((u: any) => u.role === "tenant_admin");
+        for (const admin of admins) {
+          await this.sendNotification({
+            tenantId: callRequest.tenantId,
+            customerId: callRequest.customerId || "",
+            title: "Call request from customer",
+            content: `Customer has requested a call${callRequest.ticketId ? ` for ticket ${callRequest.ticketId}` : ""}. Please assign an agent.`,
+            type: "in_app",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error notifying on call requested:", error);
+    }
+  }
+
+  /**
+   * Notify agent(s) when customer creates a ticket
+   */
+  async onTicketCreated(ticket: any): Promise<void> {
+    try {
+      // Notify tenant admins of new ticket
+      const tenantAdmins = await storage.getUsersByTenant(ticket.tenantId);
+      const admins = tenantAdmins.filter((u: any) => u.role === "tenant_admin");
+      for (const admin of admins) {
+        await this.sendNotification({
+          tenantId: ticket.tenantId,
+          customerId: ticket.customerId,
+          title: "New ticket created",
+          content: `A new ticket has been created: ${ticket.title}`,
+          type: "in_app",
+        });
+      }
+    } catch (error) {
+      console.error("Error notifying on ticket created:", error);
+    }
+  }
 }
 
 export const notificationService = new NotificationService();

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Customer Login</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .credentials {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .cred-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-left: 3px solid #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Customer Login</h1>
+        <p>This tool creates user accounts for all customers so they can login.</p>
+        
+        <div>
+            <button id="createBtn" onclick="createCustomerUsers()">Create Customer User Accounts</button>
+            <button id="getCredsBtn" onclick="getCredentials()">Get Customer Credentials</button>
+        </div>
+        
+        <div id="result"></div>
+        <div id="credentials"></div>
+    </div>
+
+    <script>
+        // Get token from localStorage (set after login)
+        function getToken() {
+            return localStorage.getItem('token');
+        }
+
+        async function createCustomerUsers() {
+            const btn = document.getElementById('createBtn');
+            const result = document.getElementById('result');
+            btn.disabled = true;
+            result.className = 'info';
+            result.textContent = 'Creating customer user accounts... Please wait...';
+
+            try {
+                const token = getToken();
+                if (!token) {
+                    throw new Error('Not logged in! Please login first at http://localhost:5000/login');
+                }
+
+                const response = await fetch('/api/admin/create-customer-users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to create customer user accounts');
+                }
+
+                result.className = 'success';
+                result.textContent = `✅ SUCCESS!\n\nCreated: ${data.created} customer user accounts\nSkipped: ${data.skipped} (already existed)\n\nCustomers can now login with:\n- Email: Their customer email\n- Password: demo123`;
+
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = `❌ ERROR:\n\n${error.message}\n\nPlease make sure:\n1. You are logged in as admin\n2. Server is running on http://localhost:5000`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function getCredentials() {
+            const btn = document.getElementById('getCredsBtn');
+            const credentialsDiv = document.getElementById('credentials');
+            btn.disabled = true;
+            credentialsDiv.innerHTML = '<div class="info">Loading customer credentials...</div>';
+
+            try {
+                const token = getToken();
+                if (!token) {
+                    throw new Error('Not logged in! Please login first at http://localhost:5000/login');
+                }
+
+                const response = await fetch('/api/admin/customer-credentials', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch credentials');
+                }
+
+                if (data.credentials && data.credentials.length > 0) {
+                    let html = '<div class="credentials"><h3>Customer Login Credentials</h3>';
+                    data.credentials.forEach(c => {
+                        html += `<div class="cred-item"><strong>${c.name}</strong><br>Email: ${c.email}<br>Password: ${c.password}<br>Tenant: ${c.tenant}</div>`;
+                    });
+                    html += `</div><p><em>Total: ${data.total} customers (showing first ${data.credentials.length})</em></p>`;
+                    credentialsDiv.innerHTML = html;
+                } else {
+                    credentialsDiv.innerHTML = '<div class="info">No customer accounts found. Click "Create Customer User Accounts" first.</div>';
+                }
+
+            } catch (error) {
+                credentialsDiv.innerHTML = `<div class="error">❌ ERROR: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+

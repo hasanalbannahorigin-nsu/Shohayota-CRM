@@ -6,6 +6,7 @@
 
 import { storage } from "../storage";
 import { db } from "../db";
+import crypto from "crypto";
 import { 
   roles, 
   permissions, 
@@ -445,7 +446,19 @@ export async function createTeam(
   description?: string
 ): Promise<Team> {
   if (!db) {
-    throw new Error("Database required for RBAC operations");
+    const memStorage = storage as any;
+    if (!memStorage.teams) memStorage.teams = new Map();
+    const id = crypto.randomUUID();
+    const team = {
+      id,
+      tenantId,
+      name,
+      description: description || "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    memStorage.teams.set(id, team);
+    return team as Team;
   }
 
   const [team] = await db.insert(teams).values({
@@ -465,7 +478,12 @@ export async function addTeamMember(
   userId: string
 ): Promise<void> {
   if (!db) {
-    throw new Error("Database required for RBAC operations");
+    const memStorage = storage as any;
+    if (!memStorage.teamMembers) memStorage.teamMembers = new Map();
+    const id = `${teamId}:${userId}`;
+    memStorage.teamMembers.set(id, { id, teamId, userId, createdAt: new Date() });
+    await invalidateUserPermissions([userId]);
+    return;
   }
 
   await db.insert(teamMembers).values({
@@ -485,7 +503,13 @@ export async function removeTeamMember(
   userId: string
 ): Promise<void> {
   if (!db) {
-    throw new Error("Database required for RBAC operations");
+    const memStorage = storage as any;
+    if (memStorage.teamMembers) {
+      const id = `${teamId}:${userId}`;
+      memStorage.teamMembers.delete(id);
+    }
+    await invalidateUserPermissions([userId]);
+    return;
   }
 
   await db.delete(teamMembers)
@@ -503,7 +527,20 @@ export async function assignRoleToTeam(
   roleId: string
 ): Promise<void> {
   if (!db) {
-    throw new Error("Database required for RBAC operations");
+    const memStorage = storage as any;
+    if (!memStorage.teamRoles) memStorage.teamRoles = new Map();
+    const id = `${teamId}:${roleId}`;
+    memStorage.teamRoles.set(id, { id, teamId, roleId, createdAt: new Date() });
+
+    // Invalidate all team members
+    const members = Array.from(memStorage.teamMembers?.values() || []).filter(
+      (tm: any) => tm.teamId === teamId
+    );
+    const userIds = members.map((m: any) => m.userId);
+    if (userIds.length > 0) {
+      await invalidateUserPermissions(userIds);
+    }
+    return;
   }
 
   await db.insert(teamRoles).values({
@@ -527,7 +564,20 @@ export async function removeRoleFromTeam(
   roleId: string
 ): Promise<void> {
   if (!db) {
-    throw new Error("Database required for RBAC operations");
+    const memStorage = storage as any;
+    if (memStorage.teamRoles) {
+      const id = `${teamId}:${roleId}`;
+      memStorage.teamRoles.delete(id);
+    }
+
+    const members = Array.from(memStorage.teamMembers?.values() || []).filter(
+      (tm: any) => tm.teamId === teamId
+    );
+    const userIds = members.map((m: any) => m.userId);
+    if (userIds.length > 0) {
+      await invalidateUserPermissions(userIds);
+    }
+    return;
   }
 
   await db.delete(teamRoles)

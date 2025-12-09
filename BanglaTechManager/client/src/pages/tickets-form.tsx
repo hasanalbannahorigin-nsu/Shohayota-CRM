@@ -20,7 +20,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertTicketSchema } from "@shared/schema";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +49,13 @@ export function AddTicketDialog() {
       category: "support" as const,
     },
   });
+
+  // Ensure we always have a default customer selected once data loads
+  useEffect(() => {
+    if (!form.getValues("customerId") && customers.length > 0) {
+      form.setValue("customerId", customers[0].id);
+    }
+  }, [customers, form]);
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {

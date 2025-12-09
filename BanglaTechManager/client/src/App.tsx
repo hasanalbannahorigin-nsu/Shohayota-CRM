@@ -39,11 +39,14 @@ import TagsManagementPage from "@/pages/tags-management";
 import SLAManagementPage from "@/pages/sla-management";
 import IntegrationsPage from "@/pages/integrations";
 import IntegrationMappingPage from "@/pages/integration-mapping";
+import MCPServerPage from "@/pages/mcp-server";
+import CustomerDashboardPage from "@/pages/customer-dashboard";
 
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
+      <Route path="/customer/dashboard" component={CustomerDashboardPage} />
       <Route path="/" component={DashboardPage} />
       <Route path="/customers" component={CustomersPage} />
       <Route path="/tickets" component={TicketsPage} />
@@ -69,6 +72,7 @@ function Router() {
       <Route path="/sla" component={SLAManagementPage} />
       <Route path="/integrations" component={IntegrationsPage} />
       <Route path="/integrations/mapping" component={IntegrationMappingPage} />
+      <Route path="/mcp-server" component={MCPServerPage} />
       <Route component={NotFound} />
     </Switch>
   );

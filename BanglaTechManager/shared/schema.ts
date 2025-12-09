@@ -62,6 +62,8 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   role: userRoleEnum("role").notNull(), // Legacy field, kept for backward compatibility
   isActive: boolean("is_active").default(true).notNull(),
+  // Customer relationship - if role is "customer", this links to customers table
+  customerId: varchar("customer_id", { length: 36 }).references(() => customers.id),
   // MFA fields
   mfaEnabled: boolean("mfa_enabled").default(false).notNull(),
   mfaSecret: varchar("mfa_secret", { length: 255 }), // Encrypted TOTP secret
@@ -96,6 +98,7 @@ export const customers = pgTable("customers", {
   tags: jsonb("tags").$type<string[]>().default([]), // Array of tag IDs
   // Metadata
   createdBy: varchar("created_by", { length: 36 }).references(() => users.id),
+  userId: varchar("user_id", { length: 36 }).references(() => users.id), // Link to user account if customer has login
   telegramId: varchar("telegram_id", { length: 100 }),
   // Soft delete
   deletedAt: timestamp("deleted_at"),
@@ -324,6 +327,17 @@ export const files = pgTable("files", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Ticket Feedback table - Customer feedback on resolved tickets
+export const ticketFeedback = pgTable("ticket_feedback", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id", { length: 36 }).references(() => tenants.id).notNull(),
+  ticketId: varchar("ticket_id", { length: 36 }).references(() => tickets.id).notNull(),
+  customerId: varchar("customer_id", { length: 36 }).references(() => customers.id).notNull(),
+  rating: integer("rating").notNull(), // 1-5 stars
+  comment: text("comment"), // Optional feedback text
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Role Templates table - Global role definitions with default permissions
 export const roleTemplates = pgTable("role_templates", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
@@ -442,6 +456,11 @@ export const insertFileSchema = createInsertSchema(files).omit({
   createdAt: true,
 });
 
+export const insertTicketFeedbackSchema = createInsertSchema(ticketFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertRoleTemplateSchema = createInsertSchema(roleTemplates).omit({
   id: true,
   createdAt: true,
@@ -496,6 +515,9 @@ export type InsertTenantUsageMetric = z.infer<typeof insertTenantUsageMetricSche
 
 export type File = typeof files.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
+
+export type TicketFeedback = typeof ticketFeedback.$inferSelect;
+export type InsertTicketFeedback = z.infer<typeof insertTicketFeedbackSchema>;
 
 export type RoleTemplate = typeof roleTemplates.$inferSelect;
 export type InsertRoleTemplate = z.infer<typeof insertRoleTemplateSchema>;

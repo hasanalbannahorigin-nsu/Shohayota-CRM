@@ -69,6 +69,22 @@ export interface IStorage {
   getMessagesByTicket(ticketId: string, tenantId: string): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
   
+  // Customer user operations
+  createCustomerUser(tenantId: string, customerId: string, email: string, password: string, name: string): Promise<User>;
+  listTicketsForCustomerUser(tenantId: string, customerId: string): Promise<Ticket[]>;
+  createCallRequest(tenantId: string, ticketId: string | null, requesterId: string, payload: { assigneeId?: string; direction?: string; scheduledAt?: Date }): Promise<any>;
+  addMessageByUser(tenantId: string, ticketId: string, authorId: string, body: string): Promise<Message>;
+  
+  // Customer portal operations
+  listCustomerTicketsForUser(tenantId: string, customerId: string, filters?: { status?: string; priority?: string }): Promise<Ticket[]>;
+  getCustomerTicketForUser(tenantId: string, ticketId: string, customerId: string): Promise<Ticket | undefined>;
+  createTicketForCustomer(tenantId: string, customerId: string, userId: string, payload: any): Promise<Ticket>;
+  addMessageByCustomer(tenantId: string, ticketId: string, authorId: string, body: string, attachmentIds?: string[]): Promise<Message>;
+  createCallRequestForCustomer(tenantId: string, ticketId: string | null, customerId: string, userId: string, scheduledAt?: Date, note?: string): Promise<any>;
+  listNotificationsForUser(tenantId: string, userId: string): Promise<any[]>;
+  addAttachment(tenantId: string, userId: string, ticketId: string, fileMeta: any): Promise<any>;
+  submitTicketFeedback(tenantId: string, ticketId: string, customerId: string, rating: number, comment?: string): Promise<any>;
+  
   // File operations
   getFile(id: string, tenantId: string): Promise<File | undefined>;
   getFilesByResource(resourceType: string, resourceId: string, tenantId: string): Promise<File[]>;
@@ -100,6 +116,22 @@ export interface IStorage {
   getTenantRoles(tenantId: string): Promise<TenantRole[]>;
   createTenantRole(role: InsertTenantRole): Promise<TenantRole>;
   updateTenantRole(id: string, tenantId: string, updates: Partial<TenantRole>): Promise<TenantRole | undefined>;
+  
+  // Tenant-aware query wrappers (matching Drizzle ORM pattern)
+  listCustomers(tenantId: string, limit?: number, offset?: number): Promise<Customer[]>;
+  listCustomersForTenant(tenantId: string, opts?: { limit?: number; offset?: number }): Promise<Customer[]>;
+  getCustomerById(tenantId: string, id: string): Promise<Customer | undefined>;
+  getCustomerByIdForTenant(tenantId: string, customerId: string): Promise<Customer | undefined>;
+  createCustomerForTenant(tenantId: string, payload: InsertCustomer): Promise<Customer>;
+  listTickets(tenantId: string, filters?: { status?: string }): Promise<Ticket[]>;
+  getTicketById(tenantId: string, id: string): Promise<Ticket | undefined>;
+  listMessages(tenantId: string, ticketId: string): Promise<Message[]>;
+  getAnalytics(tenantId: string): Promise<{
+    ticketCounts: number;
+    customerCounts: number;
+    tickets: Ticket[];
+    customers: Customer[];
+  }>;
 }
 
 import { v4 as uuidv4 } from "uuid";
@@ -187,9 +219,13 @@ export class MemStorage implements IStorage {
     const { password, ...userData } = user;
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     
+    // CRITICAL: Normalize email for all users
+    const normalizedEmail = (userData.email || "").trim().toLowerCase();
+    
     const newUser: User = {
       id: this.generateId(),
       ...userData,
+      email: normalizedEmail, // Always store normalized email
       passwordHash,
       createdAt: new Date(),
     };
@@ -200,59 +236,126 @@ export class MemStorage implements IStorage {
   // Customer operations
   async getCustomer(id: string, tenantId: string): Promise<Customer | undefined> {
     const customer = this.customers.get(id);
-    return customer && customer.tenantId === tenantId ? customer : undefined;
+    if (!customer || customer.tenantId !== tenantId) return undefined;
+    
+    const tenant = this.tenants.get(tenantId);
+    return {
+      ...customer,
+      companyName: tenant?.name || null,
+    } as any;
   }
 
   async getCustomersByTenant(tenantId: string, limit = 50, offset = 0): Promise<Customer[]> {
+    const tenant = this.tenants.get(tenantId);
+    const tenantName = tenant?.name || null;
+    
+    // CRITICAL: Always use tenant.name as companyName, never trust customer.company field
     return Array.from(this.customers.values())
       .filter((c) => c.tenantId === tenantId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(offset, offset + limit);
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(offset, offset + limit)
+      .map((c) => ({
+        ...c,
+        company: null, // Never return customer.company field
+        companyName: tenantName, // Always from tenant.name
+      })) as any[];
   }
 
   async searchCustomers(tenantId: string, query: string): Promise<Customer[]> {
+    const tenant = this.tenants.get(tenantId);
+    const tenantName = tenant?.name || null;
     const lowerQuery = query.toLowerCase();
+    
+    // CRITICAL: Always use tenant.name as companyName, never trust customer.company field
     return Array.from(this.customers.values())
       .filter((c) => {
         if (c.tenantId !== tenantId) return false;
         return (
           c.name.toLowerCase().includes(lowerQuery) ||
           c.email.toLowerCase().includes(lowerQuery) ||
-          (c.company?.toLowerCase().includes(lowerQuery) ?? false)
+          (tenantName?.toLowerCase().includes(lowerQuery) ?? false)
         );
       })
-      .slice(0, 50);
+      .slice(0, 50)
+      .map((c) => ({
+        ...c,
+        company: null, // Never return customer.company field
+        companyName: tenantName, // Always from tenant.name
+      })) as any[];
+  }
+
+  // Helper: Get customer by email (for login) - case insensitive
+  async getCustomerByEmail(email: string): Promise<Customer | undefined> {
+    const normalizedEmail = email.trim().toLowerCase();
+    return Array.from(this.customers.values()).find((c) => {
+      return (c.email || "").trim().toLowerCase() === normalizedEmail;
+    });
+  }
+
+  // Helper: Update user password
+  async updateUserPassword(userId: string, password: string): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const updated: User = {
+      ...user,
+      passwordHash,
+      updatedAt: new Date(),
+    };
+    this.users.set(userId, updated);
+    return updated;
   }
 
   async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    // CRITICAL: Normalize email - lowercase and trim
+    const normalizedEmail = (customer.email || "").trim().toLowerCase();
+    
+    // SECURITY: Ignore any client-sent company field - company name comes from tenant
     const newCustomer: Customer = {
       id: this.generateId(),
       tenantId: customer.tenantId,
       name: customer.name,
-      email: customer.email,
+      email: normalizedEmail, // Always store normalized email
       phone: customer.phone || null,
-      company: customer.company || null,
+      company: null, // Never set from client - company name comes from tenant
       status: customer.status || "active",
       telegramId: customer.telegramId || null,
       createdAt: new Date(),
     };
     this.customers.set(newCustomer.id, newCustomer);
-    return newCustomer;
+    
+    // Join with tenant to return companyName
+    const tenant = this.tenants.get(customer.tenantId);
+    return {
+      ...newCustomer,
+      companyName: tenant?.name || null, // Add companyName from tenant
+    } as any;
   }
 
   async updateCustomer(id: string, tenantId: string, updates: Partial<Customer>): Promise<Customer | undefined> {
     const customer = this.customers.get(id);
     if (!customer || customer.tenantId !== tenantId) return undefined;
     
+    // SECURITY: Ignore any client-sent company field - company name comes from tenant
+    const { company, companyName, ...safeUpdates } = updates as any;
+    
     const updated: Customer = {
       ...customer,
-      ...updates,
+      ...safeUpdates,
       id: customer.id,
-      tenantId: customer.tenantId,
+      tenantId: customer.tenantId, // Never allow tenantId to be changed
+      company: null, // Never set from client - company name comes from tenant
       createdAt: customer.createdAt,
     };
     this.customers.set(id, updated);
-    return updated;
+    
+    // Join with tenant to return companyName
+    const tenant = this.tenants.get(tenantId);
+    return {
+      ...updated,
+      companyName: tenant?.name || null, // Add companyName from tenant
+    } as any;
   }
 
   async deleteCustomer(id: string, tenantId: string): Promise<boolean> {
@@ -333,8 +436,14 @@ export class MemStorage implements IStorage {
       tenantId: message.tenantId,
       ticketId: message.ticketId || null,
       senderId: message.senderId,
-      content: message.content,
+      authorRef: message.senderId || "",
+      body: (message as any).body || (message as any).content || "",
+      direction: (message as any).direction || "outbound",
+      type: (message as any).type || "message",
+      attachments: [],
+      metadata: {},
       timestamp: new Date(),
+      createdAt: new Date(),
     };
     this.messages.set(newMessage.id, newMessage);
     return newMessage;
@@ -580,6 +689,303 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
+  // Customer user operations
+  async createCustomerUser(tenantId: string, customerId: string, email: string, password: string, name: string): Promise<User> {
+    // CRITICAL: Normalize email - lowercase and trim
+    const normalizedEmail = (email || "").trim().toLowerCase();
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    
+    const newUser: User = {
+      id: this.generateId(),
+      tenantId,
+      name,
+      email: normalizedEmail, // Always store normalized email
+      passwordHash,
+      role: "customer",
+      isActive: true,
+      mfaEnabled: false,
+      mfaSecret: null,
+      mfaBackupCodes: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    // Store customerId in user metadata (for in-memory storage)
+    (newUser as any).customerId = customerId;
+    this.users.set(newUser.id, newUser);
+    return newUser;
+  }
+
+  async listTicketsForCustomerUser(tenantId: string, customerId: string): Promise<Ticket[]> {
+    return Array.from(this.tickets.values())
+      .filter((t) => t.tenantId === tenantId && t.customerId === customerId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  // Customer portal operations
+  async listCustomerTicketsForUser(tenantId: string, customerId: string, filters?: { status?: string; priority?: string }): Promise<Ticket[]> {
+    let tickets = Array.from(this.tickets.values())
+      .filter((t) => t.tenantId === tenantId && t.customerId === customerId);
+    
+    if (filters?.status) {
+      tickets = tickets.filter((t) => t.status === filters.status);
+    }
+    
+    if (filters?.priority) {
+      tickets = tickets.filter((t) => t.priority === filters.priority);
+    }
+    
+    return tickets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getCustomerTicketForUser(tenantId: string, ticketId: string, customerId: string): Promise<Ticket | undefined> {
+    const ticket = this.tickets.get(ticketId);
+    if (!ticket || ticket.tenantId !== tenantId || ticket.customerId !== customerId) {
+      return undefined;
+    }
+    return ticket;
+  }
+
+  async createTicketForCustomer(tenantId: string, customerId: string, userId: string, payload: any): Promise<Ticket> {
+    const newTicket: Ticket = {
+      id: this.generateId(),
+      tenantId,
+      customerId,
+      assigneeId: null,
+      title: payload.title,
+      description: payload.description,
+      category: payload.category || "support",
+      status: "new",
+      priority: payload.priority || "medium",
+      channel: "ui",
+      type: payload.type || "issue",
+      tags: [],
+      labels: [],
+      slaPolicyId: null,
+      slaDeadline: null,
+      slaState: "on_track",
+      customFields: {},
+      parentTicketId: null,
+      duplicateOfTicketId: null,
+      metadata: {},
+      createdBy: userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      resolvedAt: null,
+      closedAt: null,
+      deletedAt: null,
+    };
+    this.tickets.set(newTicket.id, newTicket);
+    return newTicket;
+  }
+
+  async addMessageByCustomer(tenantId: string, ticketId: string, authorId: string, body: string, attachmentIds: string[] = []): Promise<Message> {
+    // Verify ticket belongs to customer's tenant
+    const ticket = this.tickets.get(ticketId);
+    if (!ticket || ticket.tenantId !== tenantId) {
+      throw new Error("Ticket not found or access denied");
+    }
+
+    const newMessage: Message = {
+      id: this.generateId(),
+      tenantId,
+      ticketId,
+      senderId: authorId,
+      authorRef: authorId,
+      body,
+      direction: "inbound",
+      type: "message",
+      attachments: attachmentIds,
+      channelId: null,
+      channelMessageId: null,
+      metadata: {},
+      timestamp: new Date(),
+      createdAt: new Date(),
+    };
+    this.messages.set(newMessage.id, newMessage);
+    
+    // Update ticket updatedAt
+    ticket.updatedAt = new Date();
+    this.tickets.set(ticketId, ticket);
+    
+    return newMessage;
+  }
+
+  async createCallRequestForCustomer(tenantId: string, ticketId: string | null, customerId: string, userId: string, scheduledAt?: Date, note?: string): Promise<any> {
+    const memStorage = this as any;
+    if (!memStorage.phoneCalls) {
+      memStorage.phoneCalls = new Map();
+    }
+
+    const customer = this.customers.get(customerId);
+    if (!customer || customer.tenantId !== tenantId) {
+      throw new Error("Customer not found");
+    }
+
+    const callId = this.generateId();
+    const call = {
+      id: callId,
+      tenantId,
+      phoneNumberId: null,
+      externalCallId: null,
+      customerId,
+      agentId: null,
+      userId,
+      ticketId,
+      direction: "inbound",
+      fromNumber: customer.phone || "",
+      toNumber: "",
+      status: scheduledAt ? "scheduled" : "requested",
+      disposition: null,
+      startTime: scheduledAt || new Date(),
+      answeredTime: null,
+      endTime: null,
+      duration: null,
+      recordingId: null,
+      transcriptId: null,
+      recordingUrl: null,
+      transcriptRef: null,
+      transcript: null,
+      notes: note || null,
+      metadata: { scheduledAt: scheduledAt?.toISOString() || null },
+      callStartTime: null,
+      callEndTime: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    memStorage.phoneCalls.set(callId, call);
+    return call;
+  }
+
+  async listNotificationsForUser(tenantId: string, userId: string): Promise<any[]> {
+    const memStorage = this as any;
+    if (!memStorage.notifications) {
+      memStorage.notifications = new Map();
+    }
+    
+    const user = this.users.get(userId);
+    if (!user || user.tenantId !== tenantId) {
+      return [];
+    }
+
+    // Get notifications for this user (or customer if user is customer)
+    const customerId = (user as any).customerId;
+    return Array.from(memStorage.notifications.values())
+      .filter((n: any) => {
+        if (n.tenantId !== tenantId) return false;
+        // Match by userId or customerId
+        return n.userId === userId || (customerId && n.customerId === customerId);
+      })
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async addAttachment(tenantId: string, userId: string, ticketId: string, fileMeta: any): Promise<any> {
+    const memStorage = this as any;
+    if (!memStorage.files) {
+      memStorage.files = new Map();
+    }
+
+    // Verify ticket belongs to tenant
+    const ticket = this.tickets.get(ticketId);
+    if (!ticket || ticket.tenantId !== tenantId) {
+      throw new Error("Ticket not found or access denied");
+    }
+
+    const fileId = this.generateId();
+    const file = {
+      id: fileId,
+      tenantId,
+      resourceType: "ticket",
+      resourceId: ticketId,
+      filename: fileMeta.filename,
+      originalFilename: fileMeta.originalFilename || fileMeta.filename,
+      mimeType: fileMeta.mimeType || "application/octet-stream",
+      size: fileMeta.size || 0,
+      storagePath: fileMeta.storagePath || `/${tenantId}/tickets/${ticketId}/${fileId}`,
+      storageProvider: fileMeta.storageProvider || "local",
+      uploadedBy: userId,
+      createdAt: new Date(),
+    };
+    
+    memStorage.files.set(fileId, file);
+    return file;
+  }
+
+  async submitTicketFeedback(tenantId: string, ticketId: string, customerId: string, rating: number, comment?: string): Promise<any> {
+    const memStorage = this as any;
+    if (!memStorage.ticketFeedback) {
+      memStorage.ticketFeedback = new Map();
+    }
+
+    // Verify ticket belongs to customer
+    const ticket = this.tickets.get(ticketId);
+    if (!ticket || ticket.tenantId !== tenantId || ticket.customerId !== customerId) {
+      throw new Error("Ticket not found or access denied");
+    }
+
+    // Only allow feedback on resolved/closed tickets
+    if (ticket.status !== "resolved" && ticket.status !== "closed") {
+      throw new Error("Feedback can only be submitted for resolved or closed tickets");
+    }
+
+    const feedbackId = this.generateId();
+    const feedback = {
+      id: feedbackId,
+      tenantId,
+      ticketId,
+      customerId,
+      rating,
+      comment: comment || null,
+      createdAt: new Date(),
+    };
+    
+    memStorage.ticketFeedback.set(feedbackId, feedback);
+    return feedback;
+  }
+
+  async createCallRequest(tenantId: string, ticketId: string | null, requesterId: string, payload: { assigneeId?: string; direction?: string; scheduledAt?: Date }): Promise<any> {
+    // In-memory storage for phone calls
+    const memStorage = this as any;
+    if (!memStorage.phoneCalls) {
+      memStorage.phoneCalls = new Map();
+    }
+
+    const callRequest = {
+      id: this.generateId(),
+      tenantId,
+      ticketId: ticketId || null,
+      requesterId,
+      assigneeId: payload.assigneeId || null,
+      status: "requested",
+      direction: payload.direction || "outbound",
+      scheduledAt: payload.scheduledAt || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    memStorage.phoneCalls.set(callRequest.id, callRequest);
+    return callRequest;
+  }
+
+  async addMessageByUser(tenantId: string, ticketId: string, authorId: string, body: string): Promise<Message> {
+    const newMessage: Message = {
+      id: this.generateId(),
+      tenantId,
+      ticketId,
+      senderId: authorId,
+      authorRef: authorId,
+      body,
+      direction: "outbound",
+      type: "message",
+      attachments: [],
+      metadata: {},
+      timestamp: new Date(),
+      createdAt: new Date(),
+    };
+    this.messages.set(newMessage.id, newMessage);
+    return newMessage;
+  }
+
   // Helper to seed data
   async seed(seedData: { tenants: Tenant[]; users: User[]; customers: Customer[]; tickets: Ticket[] }) {
     for (const tenant of seedData.tenants) {
@@ -594,6 +1000,97 @@ export class MemStorage implements IStorage {
     for (const ticket of seedData.tickets) {
       this.tickets.set(ticket.id, ticket);
     }
+  }
+
+  // ==================== Tenant-Aware Query Wrappers ====================
+  // These functions match the Drizzle ORM pattern and ensure strict tenant isolation
+  
+  /**
+   * List customers for a tenant
+   * STRICT: Only returns customers where tenantId matches
+   */
+  async listCustomers(tenantId: string, limit = 50, offset = 0): Promise<Customer[]> {
+    return this.getCustomersByTenant(tenantId, limit, offset);
+  }
+
+  /**
+   * Tenant-aware customer listing with companyName sourced from tenants.name
+   */
+  async listCustomersForTenant(tenantId: string, opts: { limit?: number; offset?: number } = {}): Promise<Customer[]> {
+    const limit = opts.limit ?? 50;
+    const offset = opts.offset ?? 0;
+    return this.getCustomersByTenant(tenantId, limit, offset);
+  }
+
+  /**
+   * Get customer by ID for a tenant
+   * STRICT: Returns undefined if customer doesn't belong to tenant
+   */
+  async getCustomerById(tenantId: string, id: string): Promise<Customer | undefined> {
+    return this.getCustomer(id, tenantId);
+  }
+
+  /**
+   * Tenant-aware get by ID that always decorates companyName from tenant
+   */
+  async getCustomerByIdForTenant(tenantId: string, customerId: string): Promise<Customer | undefined> {
+    return this.getCustomer(customerId, tenantId);
+  }
+
+  /**
+   * Create a customer scoped to a tenant, ignoring any spoofed company/tenant fields
+   */
+  async createCustomerForTenant(tenantId: string, payload: InsertCustomer): Promise<Customer> {
+    return this.createCustomer({
+      ...payload,
+      tenantId,
+      company: null,
+    });
+  }
+
+  /**
+   * List tickets for a tenant
+   * STRICT: Only returns tickets where tenantId matches
+   */
+  async listTickets(tenantId: string, filters?: { status?: string }): Promise<Ticket[]> {
+    return this.getTicketsByTenant(tenantId, filters?.status);
+  }
+
+  /**
+   * Get ticket by ID for a tenant
+   * STRICT: Returns undefined if ticket doesn't belong to tenant
+   */
+  async getTicketById(tenantId: string, id: string): Promise<Ticket | undefined> {
+    return this.getTicket(id, tenantId);
+  }
+
+  /**
+   * List messages for a ticket in a tenant
+   * STRICT: Only returns messages where tenantId matches
+   */
+  async listMessages(tenantId: string, ticketId: string): Promise<Message[]> {
+    return this.getMessagesByTicket(ticketId, tenantId);
+  }
+
+  /**
+   * Get analytics for a tenant
+   * STRICT: Only aggregates data where tenantId matches
+   */
+  async getAnalytics(tenantId: string): Promise<{
+    ticketCounts: number;
+    customerCounts: number;
+    tickets: Ticket[];
+    customers: Customer[];
+  }> {
+    const tickets = await this.getTicketsByTenant(tenantId);
+    const customers = await this.getCustomersByTenant(tenantId, 10000, 0);
+    
+    return {
+      ticketCounts: tickets.length,
+      customerCounts: customers.length,
+      tickets,
+      customers,
+    };
   }
 }
 

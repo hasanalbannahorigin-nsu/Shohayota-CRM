@@ -58,3 +58,86 @@ export const customerValidationSchema = z.object({
 });
 
 export type CustomerValidation = z.infer<typeof customerValidationSchema>;
+
+/**
+ * CRITICAL SECURITY: Sanitize customer payload to prevent tenant_id and company spoofing
+ * 
+ * For non-super-admin users:
+ * - Strips tenant_id from payload (must come from authenticated user)
+ * - Strips company field (companyName comes from tenant name)
+ * 
+ * For super-admin users:
+ * - Allows tenant_id in payload for cross-tenant operations
+ * - Still strips company field (companyName comes from tenant name)
+ */
+export function sanitizeCustomerPayload(
+  reqBody: any,
+  user: { role: string; tenantId?: string }
+): any {
+  const payload = { ...reqBody };
+
+  // CRITICAL: Always strip company field - it comes from tenant name, not client
+  delete payload.company;
+
+  // CRITICAL: For non-super-admin, strip tenant_id - it must come from authenticated user
+  if (user.role !== "super_admin") {
+    delete payload.tenantId;
+    delete payload.tenant_id; // Support both naming conventions
+  }
+
+  return payload;
+}
+
+/**
+ * CRITICAL SECURITY: Sanitize ticket payload to prevent tenant_id spoofing
+ */
+export function sanitizeTicketPayload(
+  reqBody: any,
+  user: { role: string; tenantId?: string }
+): any {
+  const payload = { ...reqBody };
+
+  // CRITICAL: For non-super-admin, strip tenant_id
+  if (user.role !== "super_admin") {
+    delete payload.tenantId;
+    delete payload.tenant_id;
+  }
+
+  return payload;
+}
+
+/**
+ * CRITICAL SECURITY: Sanitize message payload to prevent tenant_id spoofing
+ */
+export function sanitizeMessagePayload(
+  reqBody: any,
+  user: { role: string; tenantId?: string }
+): any {
+  const payload = { ...reqBody };
+
+  // CRITICAL: For non-super-admin, strip tenant_id
+  if (user.role !== "super_admin") {
+    delete payload.tenantId;
+    delete payload.tenant_id;
+  }
+
+  return payload;
+}
+
+/**
+ * Get effective tenant ID for a request
+ * - Non-super-admin: Always uses their own tenantId
+ * - Super-admin: Can use tenantId from query param or body, otherwise their own
+ */
+export function getEffectiveTenantId(
+  user: { role: string; tenantId?: string },
+  queryTenantId?: string,
+  bodyTenantId?: string
+): string | null {
+  if (user.role === "super_admin") {
+    return queryTenantId || bodyTenantId || user.tenantId || null;
+  }
+
+  // Non-super-admin: Always use their own tenantId
+  return user.tenantId || null;
+}

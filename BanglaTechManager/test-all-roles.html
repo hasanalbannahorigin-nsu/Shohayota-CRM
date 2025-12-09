@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test All Role-Based Logins - Shohayota CRM</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .role-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .role-title {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .role-icon {
+            font-size: 1.2em;
+        }
+        .credentials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .credential-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f9f9f9;
+            transition: all 0.3s ease;
+        }
+        .credential-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+        .credential-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        .credential-item {
+            margin: 8px 0;
+            font-size: 0.95em;
+        }
+        .credential-item strong {
+            color: #555;
+            display: inline-block;
+            width: 80px;
+        }
+        .login-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95em;
+            margin-top: 10px;
+            width: 100%;
+            transition: background 0.3s ease;
+        }
+        .login-btn:hover {
+            background: #5568d3;
+        }
+        .login-btn:active {
+            transform: scale(0.98);
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .info-box p {
+            margin: 5px 0;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Test All Role-Based Logins</h1>
+        
+        <div class="info-box">
+            <p><strong>📌 Instructions:</strong></p>
+            <p>1. Make sure the server is running at <code>http://localhost:5000</code></p>
+            <p>2. Click any "Login" button to automatically fill and submit the login form</p>
+            <p>3. The page will open in a new tab for each login</p>
+        </div>
+
+        <!-- Super Admin -->
+        <div class="role-section">
+            <div class="role-title">
+                <span class="role-icon">👑</span>
+                <span>Super Admin</span>
+            </div>
+            <p style="color: #666; margin-bottom: 15px;">Full system access across all tenants</p>
+            <div class="credentials-grid">
+                <div class="credential-card">
+                    <h3>Super Administrator</h3>
+                    <div class="credential-item"><strong>Email:</strong> superadmin@sohayota.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Role:</strong> super_admin</div>
+                    <button class="login-btn" onclick="login('superadmin@sohayota.com', 'demo123', 'Super Admin')">
+                        Login as Super Admin
+                    </button>
+                    <div class="status" id="status-superadmin"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tenant Admins -->
+        <div class="role-section">
+            <div class="role-title">
+                <span class="role-icon">🏢</span>
+                <span>Tenant Admins</span>
+            </div>
+            <p style="color: #666; margin-bottom: 15px;">Full access within their respective tenant</p>
+            <div class="credentials-grid">
+                <div class="credential-card">
+                    <h3>Dhaka Tech Solutions</h3>
+                    <div class="credential-item"><strong>Email:</strong> admin@dhakatech.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Dhaka Tech Solutions</div>
+                    <button class="login-btn" onclick="login('admin@dhakatech.com', 'demo123', 'Tenant Admin - Dhaka')">
+                        Login
+                    </button>
+                    <div class="status" id="status-dhaka-admin"></div>
+                </div>
+                <div class="credential-card">
+                    <h3>Chittagong Tech Hub</h3>
+                    <div class="credential-item"><strong>Email:</strong> admin@chittagong.tech.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Chittagong Tech Hub</div>
+                    <button class="login-btn" onclick="login('admin@chittagong.tech.com', 'demo123', 'Tenant Admin - Chittagong')">
+                        Login
+                    </button>
+                    <div class="status" id="status-chittagong-admin"></div>
+                </div>
+                <div class="credential-card">
+                    <h3>Sylhet Software House</h3>
+                    <div class="credential-item"><strong>Email:</strong> admin@sylhet.software.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Sylhet Software House</div>
+                    <button class="login-btn" onclick="login('admin@sylhet.software.com', 'demo123', 'Tenant Admin - Sylhet')">
+                        Login
+                    </button>
+                    <div class="status" id="status-sylhet-admin"></div>
+                </div>
+                <div class="credential-card">
+                    <h3>Khulna IT Systems</h3>
+                    <div class="credential-item"><strong>Email:</strong> admin@khulna.it.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Khulna IT Systems</div>
+                    <button class="login-btn" onclick="login('admin@khulna.it.com', 'demo123', 'Tenant Admin - Khulna')">
+                        Login
+                    </button>
+                    <div class="status" id="status-khulna-admin"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Support Agents -->
+        <div class="role-section">
+            <div class="role-title">
+                <span class="role-icon">👨‍💼</span>
+                <span>Support Agents</span>
+            </div>
+            <p style="color: #666; margin-bottom: 15px;">Can manage customers and tickets within their tenant</p>
+            <div class="credentials-grid">
+                <div class="credential-card">
+                    <h3>Dhaka Tech Support</h3>
+                    <div class="credential-item"><strong>Email:</strong> support@dhaka.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Dhaka Tech Solutions</div>
+                    <button class="login-btn" onclick="login('support@dhaka.com', 'demo123', 'Support Agent - Dhaka')">
+                        Login
+                    </button>
+                    <div class="status" id="status-dhaka-support"></div>
+                </div>
+                <div class="credential-card">
+                    <h3>Chittagong Support</h3>
+                    <div class="credential-item"><strong>Email:</strong> support@chittagong.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Chittagong Tech Hub</div>
+                    <button class="login-btn" onclick="login('support@chittagong.com', 'demo123', 'Support Agent - Chittagong')">
+                        Login
+                    </button>
+                    <div class="status" id="status-chittagong-support"></div>
+                </div>
+                <div class="credential-card">
+                    <h3>Sylhet Support</h3>
+                    <div class="credential-item"><strong>Email:</strong> support@sylhet.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Sylhet Software House</div>
+                    <button class="login-btn" onclick="login('support@sylhet.com', 'demo123', 'Support Agent - Sylhet')">
+                        Login
+                    </button>
+                    <div class="status" id="status-sylhet-support"></div>
+                </div>
+                <div class="credential-card">
+                    <h3>Khulna Support</h3>
+                    <div class="credential-item"><strong>Email:</strong> support@khulna.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Khulna IT Systems</div>
+                    <button class="login-btn" onclick="login('support@khulna.com', 'demo123', 'Support Agent - Khulna')">
+                        Login
+                    </button>
+                    <div class="status" id="status-khulna-support"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customers -->
+        <div class="role-section">
+            <div class="role-title">
+                <span class="role-icon">👤</span>
+                <span>Customer Accounts</span>
+            </div>
+            <p style="color: #666; margin-bottom: 15px;">Sample customer accounts (password: demo123 for all)</p>
+            <div class="credentials-grid">
+                <div class="credential-card">
+                    <h3>Customer - Dhaka Tech</h3>
+                    <div class="credential-item"><strong>Email:</strong> rahim.khan1@company.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Dhaka Tech Solutions</div>
+                    <button class="login-btn" onclick="login('rahim.khan1@company.com', 'demo123', 'Customer - Rahim Khan')">
+                        Login
+                    </button>
+                    <div class="status" id="status-customer-rahim"></div>
+                </div>
+                <div class="credential-card">
+                    <h3>Customer - Dhaka Tech</h3>
+                    <div class="credential-item"><strong>Email:</strong> fatema.khan2@company.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Dhaka Tech Solutions</div>
+                    <button class="login-btn" onclick="login('fatema.khan2@company.com', 'demo123', 'Customer - Fatema Khan')">
+                        Login
+                    </button>
+                    <div class="status" id="status-customer-fatema"></div>
+                </div>
+                <div class="credential-card">
+                    <h3>Customer - Chittagong</h3>
+                    <div class="credential-item"><strong>Email:</strong> priya.sharma19@company.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Chittagong Tech Hub</div>
+                    <button class="login-btn" onclick="login('priya.sharma19@company.com', 'demo123', 'Customer - Priya Sharma')">
+                        Login
+                    </button>
+                    <div class="status" id="status-customer-priya"></div>
+                </div>
+                <div class="credential-card">
+                    <h3>Customer - Sylhet</h3>
+                    <div class="credential-item"><strong>Email:</strong> majid.hassan85@company.com</div>
+                    <div class="credential-item"><strong>Password:</strong> demo123</div>
+                    <div class="credential-item"><strong>Tenant:</strong> Sylhet Software House</div>
+                    <button class="login-btn" onclick="login('majid.hassan85@company.com', 'demo123', 'Customer - Majid Hassan')">
+                        Login
+                    </button>
+                    <div class="status" id="status-customer-majid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function login(email, password, roleName) {
+            const loginUrl = 'http://localhost:5000/login';
+            
+            // Open login page in new tab
+            const newWindow = window.open(loginUrl, '_blank');
+            
+            if (!newWindow) {
+                alert('Please allow popups to test logins automatically');
+                return;
+            }
+
+            // Wait for the page to load, then fill the form
+            setTimeout(() => {
+                try {
+                    // Try to access the new window's document
+                    const form = newWindow.document.querySelector('form');
+                    if (form) {
+                        const emailInput = newWindow.document.querySelector('input[type="email"]');
+                        const passwordInput = newWindow.document.querySelector('input[type="password"]');
+                        const submitButton = newWindow.document.querySelector('button[type="submit"]');
+                        
+                        if (emailInput && passwordInput) {
+                            emailInput.value = email;
+                            passwordInput.value = password;
+                            
+                            // Trigger input events
+                            emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            
+                            // Show status
+                            const statusId = `status-${email.split('@')[0].replace(/\./g, '-')}`;
+                            const statusEl = document.getElementById(statusId);
+                            if (statusEl) {
+                                statusEl.textContent = `✅ Opened login page for ${roleName}`;
+                                statusEl.className = 'status success';
+                                statusEl.style.display = 'block';
+                            }
+                            
+                            // Auto-submit after a short delay
+                            setTimeout(() => {
+                                if (submitButton) {
+                                    submitButton.click();
+                                } else if (form) {
+                                    form.submit();
+                                }
+                            }, 500);
+                        }
+                    } else {
+                        // If form not found, just show the credentials
+                        newWindow.alert(`Login Credentials:\n\nEmail: ${email}\nPassword: ${password}\n\nPlease login manually.`);
+                    }
+                } catch (e) {
+                    // Cross-origin restriction - show credentials in alert
+                    newWindow.alert(`Login Credentials:\n\nEmail: ${email}\nPassword: ${password}\n\nPlease login manually.`);
+                }
+            }, 1000);
+        }
+
+        // Alternative: Direct API login (if CORS allows)
+        async function loginViaAPI(email, password, roleName) {
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    // Store token in localStorage
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // Redirect based on role
+                    if (data.user.role === 'customer') {
+                        window.open('http://localhost:5000/customer/dashboard', '_blank');
+                    } else {
+                        window.open('http://localhost:5000/', '_blank');
+                    }
+                    
+                    const statusId = `status-${email.split('@')[0].replace(/\./g, '-')}`;
+                    const statusEl = document.getElementById(statusId);
+                    if (statusEl) {
+                        statusEl.textContent = `✅ Successfully logged in as ${roleName}`;
+                        statusEl.className = 'status success';
+                        statusEl.style.display = 'block';
+                    }
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Login failed');
+                }
+            } catch (error) {
+                const statusId = `status-${email.split('@')[0].replace(/\./g, '-')}`;
+                const statusEl = document.getElementById(statusId);
+                if (statusEl) {
+                    statusEl.textContent = `❌ Error: ${error.message}. Opening login page...`;
+                    statusEl.className = 'status error';
+                    statusEl.style.display = 'block';
+                }
+                // Fallback to opening login page
+                login(email, password, roleName);
+            }
+        }
+    </script>
+</body>
+</html>
+

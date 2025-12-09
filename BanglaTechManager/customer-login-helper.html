@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Login Helper - Shohayota CRM</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.95em;
+        }
+        .customer-list {
+            margin: 20px 0;
+        }
+        .customer-item {
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .customer-item:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+            transform: translateX(5px);
+        }
+        .customer-email {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .customer-tenant {
+            font-size: 0.85em;
+            color: #666;
+        }
+        .password-info {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 12px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .password-info strong {
+            color: #2196F3;
+        }
+        .open-login-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            width: 100%;
+            margin-top: 20px;
+            transition: background 0.3s ease;
+        }
+        .open-login-btn:hover {
+            background: #5568d3;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👤 Customer Login Helper</h1>
+        <p class="subtitle">Click any customer to auto-fill login credentials</p>
+        
+        <div class="password-info">
+            <strong>Password for all customers:</strong> <code>demo123</code>
+        </div>
+
+        <div class="customer-list">
+            <div class="customer-item" onclick="login('rahim.khan1@company.com')">
+                <div class="customer-email">rahim.khan1@company.com</div>
+                <div class="customer-tenant">Dhaka Tech Solutions</div>
+            </div>
+            <div class="customer-item" onclick="login('fatema.khan2@company.com')">
+                <div class="customer-email">fatema.khan2@company.com</div>
+                <div class="customer-tenant">Dhaka Tech Solutions</div>
+            </div>
+            <div class="customer-item" onclick="login('karim.ahmed3@company.com')">
+                <div class="customer-email">karim.ahmed3@company.com</div>
+                <div class="customer-tenant">Dhaka Tech Solutions</div>
+            </div>
+            <div class="customer-item" onclick="login('sufia.begum9@company.com')">
+                <div class="customer-email">sufia.begum9@company.com</div>
+                <div class="customer-tenant">Dhaka Tech Solutions</div>
+            </div>
+            <div class="customer-item" onclick="login('priya.sharma19@company.com')">
+                <div class="customer-email">priya.sharma19@company.com</div>
+                <div class="customer-tenant">Chittagong Tech Hub</div>
+            </div>
+            <div class="customer-item" onclick="login('majid.hassan85@company.com')">
+                <div class="customer-email">majid.hassan85@company.com</div>
+                <div class="customer-tenant">Sylhet Software House</div>
+            </div>
+            <div class="customer-item" onclick="login('samir.patel123@company.com')">
+                <div class="customer-email">samir.patel123@company.com</div>
+                <div class="customer-tenant">Khulna IT Systems</div>
+            </div>
+        </div>
+
+        <button class="open-login-btn" onclick="openLoginPage()">
+            Open Login Page
+        </button>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        function login(email) {
+            const loginUrl = 'http://localhost:5000/login';
+            const password = 'demo123';
+            
+            // Open login page
+            const newWindow = window.open(loginUrl, '_blank');
+            
+            if (!newWindow) {
+                alert('Please allow popups to auto-fill login credentials');
+                return;
+            }
+
+            // Wait for page to load, then fill form
+            setTimeout(() => {
+                try {
+                    const form = newWindow.document.querySelector('form');
+                    if (form) {
+                        const emailInput = newWindow.document.querySelector('input[type="email"]');
+                        const passwordInput = newWindow.document.querySelector('input[type="password"]');
+                        
+                        if (emailInput && passwordInput) {
+                            emailInput.value = email;
+                            passwordInput.value = password;
+                            
+                            // Trigger input events
+                            emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            
+                            // Focus on email field
+                            emailInput.focus();
+                            
+                            // Show status
+                            const statusEl = document.getElementById('status');
+                            statusEl.textContent = `✅ Credentials filled for ${email}`;
+                            statusEl.className = 'status success';
+                            statusEl.style.display = 'block';
+                        }
+                    } else {
+                        // Fallback: show credentials
+                        newWindow.alert(`Customer Login Credentials:\n\nEmail: ${email}\nPassword: ${password}\n\nPlease login manually.`);
+                    }
+                } catch (e) {
+                    // Cross-origin restriction - show credentials
+                    newWindow.alert(`Customer Login Credentials:\n\nEmail: ${email}\nPassword: ${password}\n\nPlease login manually.`);
+                }
+            }, 1000);
+        }
+
+        function openLoginPage() {
+            window.open('http://localhost:5000/login', '_blank');
+        }
+
+        // Try direct API login (if CORS allows)
+        async function loginViaAPI(email, password) {
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    // Store token
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // Redirect to customer dashboard
+                    window.open('http://localhost:5000/customer/dashboard', '_blank');
+                    
+                    const statusEl = document.getElementById('status');
+                    statusEl.textContent = `✅ Successfully logged in as ${data.user.name}`;
+                    statusEl.className = 'status success';
+                    statusEl.style.display = 'block';
+                } else {
+                    throw new Error('Login failed');
+                }
+            } catch (error) {
+                // Fallback to form fill
+                login(email);
+            }
+        }
+    </script>
+</body>
+</html>
+

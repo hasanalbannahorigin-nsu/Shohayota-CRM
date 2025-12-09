@@ -16,8 +16,8 @@ import {
 } from "../service/rbac-service";
 import { db } from "../db";
 import { storage } from "../storage";
-import { teams, teamMembers, teamRoles } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { teams, teamMembers, teamRoles, users } from "@shared/schema";
+import { eq, and, sql } from "drizzle-orm";
 import { logAuditEvent } from "../audit-service";
 
 export function registerTeamRoutes(app: Express): void {
@@ -31,14 +31,30 @@ export function registerTeamRoutes(app: Express): void {
         // In-memory mode
         const memStorage = storage as any;
         const teamsList = Array.from(memStorage.teams?.values() || [])
-          .filter((t: any) => t.tenantId === tenantId);
+          .filter((t: any) => t.tenantId === tenantId)
+          .map((t: any) => {
+            const memberCount = Array.from(memStorage.teamMembers?.values() || []).filter(
+              (tm: any) => tm.teamId === t.id
+            ).length;
+            return { ...t, memberCount };
+          });
         res.json(teamsList);
         return;
       }
 
-      const teamsList = await db.select()
+      const teamsList = await db.select({
+        id: teams.id,
+        tenantId: teams.tenantId,
+        name: teams.name,
+        description: teams.description,
+        createdAt: teams.createdAt,
+        updatedAt: teams.updatedAt,
+        memberCount: sql<number>`COUNT(${teamMembers.userId})`,
+      })
         .from(teams)
-        .where(eq(teams.tenantId, tenantId));
+        .leftJoin(teamMembers, eq(teamMembers.teamId, teams.id))
+        .where(eq(teams.tenantId, tenantId))
+        .groupBy(teams.id);
 
       res.json(teamsList);
     } catch (error) {
@@ -87,21 +103,33 @@ export function registerTeamRoutes(app: Express): void {
       const teamId = req.params.id;
       const { name, description } = req.body;
 
+      let updated: any;
       if (!db) {
-        return res.status(501).json({ error: "Team update requires database" });
-      }
-
-      const [updated] = await db.update(teams)
-        .set({
-          name,
-          description,
+        const memStorage = storage as any;
+        const team = memStorage.teams?.get(teamId);
+        if (!team || team.tenantId !== tenantId) {
+          return res.status(404).json({ error: "Team not found" });
+        }
+        updated = {
+          ...team,
+          name: name ?? team.name,
+          description: description ?? team.description,
           updatedAt: new Date(),
-        })
-        .where(and(eq(teams.id, teamId), eq(teams.tenantId, tenantId)))
-        .returning();
-
-      if (!updated) {
-        return res.status(404).json({ error: "Team not found" });
+        };
+        memStorage.teams.set(teamId, updated);
+      } else {
+        [updated] = await db.update(teams)
+          .set({
+            name,
+            description,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(teams.id, teamId), eq(teams.tenantId, tenantId)))
+          .returning();
+  
+        if (!updated) {
+          return res.status(404).json({ error: "Team not found" });
+        }
       }
 
       // Log audit
@@ -131,11 +159,27 @@ export function registerTeamRoutes(app: Express): void {
       const teamId = req.params.id;
 
       if (!db) {
-        return res.status(501).json({ error: "Team deletion requires database" });
+        const memStorage = storage as any;
+        const team = memStorage.teams?.get(teamId);
+        if (!team || team.tenantId !== tenantId) {
+          return res.status(404).json({ error: "Team not found" });
+        }
+        memStorage.teams.delete(teamId);
+        // clean memberships/roles
+        if (memStorage.teamMembers) {
+          for (const key of Array.from(memStorage.teamMembers.keys())) {
+            if (key.startsWith(`${teamId}:`)) memStorage.teamMembers.delete(key);
+          }
+        }
+        if (memStorage.teamRoles) {
+          for (const key of Array.from(memStorage.teamRoles.keys())) {
+            if (key.startsWith(`${teamId}:`)) memStorage.teamRoles.delete(key);
+          }
+        }
+      } else {
+        await db.delete(teams)
+          .where(and(eq(teams.id, teamId), eq(teams.tenantId, tenantId)));
       }
-
-      await db.delete(teams)
-        .where(and(eq(teams.id, teamId), eq(teams.tenantId, tenantId)));
 
       // Log audit
       await logAuditEvent({
@@ -202,6 +246,12 @@ export function registerTeamRoutes(app: Express): void {
       const teamId = req.params.id;
       const userId = req.params.userId;
 
+      if (!db) {
+        const memStorage = storage as any;
+        if (memStorage.teamMembers) {
+          memStorage.teamMembers.delete(`${teamId}:${userId}`);
+        }
+      }
       await removeTeamMember(teamId, userId);
 
       // Log audit
@@ -282,8 +332,45 @@ export function registerTeamRoutes(app: Express): void {
       res.status(500).json({ error: error.message || "Failed to remove role from team" });
     }
   });
-}
 
-// Import storage
-import { storage } from "../storage";
+  // ==================== List Team Members ====================
+  app.get("/api/teams/:id/members", authenticate, authorize(PERMISSIONS.TEAMS_READ), async (req, res) => {
+    try {
+      const tenantId = req.user!.tenantId;
+      const teamId = req.params.id;
+
+      if (!db) {
+        const memStorage = storage as any;
+        const members = Array.from(memStorage.teamMembers?.values() || [])
+          .filter((tm: any) => tm.teamId === teamId)
+          .map((tm: any) => {
+            const user = memStorage.users?.get(tm.userId);
+            return user && user.tenantId === tenantId ? {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+            } : null;
+          })
+          .filter(Boolean);
+        return res.json(members);
+      }
+
+      const members = await db.select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+      })
+        .from(teamMembers)
+        .innerJoin(users, eq(users.id, teamMembers.userId))
+        .where(and(eq(teamMembers.teamId, teamId), eq(users.tenantId, tenantId)));
+
+      res.json(members);
+    } catch (error) {
+      console.error("Error listing team members:", error);
+      res.status(500).json({ error: "Failed to list team members" });
+    }
+  });
+}
 

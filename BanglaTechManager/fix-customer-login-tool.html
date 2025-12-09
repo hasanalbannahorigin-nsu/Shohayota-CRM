@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Customer Login - Shohayota CRM</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 6px;
+            display: none;
+        }
+        .result.show {
+            display: block;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .result.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .result pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            font-size: 13px;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .credentials {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .step {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .step h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Customer Login</h1>
+        <p class="subtitle">Diagnose and fix customer login issues instantly</p>
+        
+        <div class="form-group">
+            <label for="email">Customer Email</label>
+            <input 
+                type="email" 
+                id="email" 
+                placeholder="Enter customer email (e.g., rahim.khan1@company.com)"
+                autocomplete="email"
+            />
+        </div>
+        
+        <button id="diagnoseBtn" onclick="diagnose()">
+            🔍 Diagnose Account
+        </button>
+        <button id="fixBtn" onclick="fixAccount()" style="background: #28a745;">
+            ✅ Fix Account
+        </button>
+        
+        <div id="result" class="result"></div>
+        
+        <div class="step">
+            <h3>Quick Actions</h3>
+            <button onclick="fixAllCustomers()" style="background: #17a2b8;">
+                🔄 Fix ALL Customer Accounts
+            </button>
+            <button onclick="getCustomerEmails()" style="background: #ffc107; color: #333;">
+                📧 Get Customer Emails List
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function diagnose() {
+            const email = document.getElementById('email').value.trim();
+            const btn = document.getElementById('diagnoseBtn');
+            const result = document.getElementById('result');
+            
+            if (!email) {
+                showResult('error', 'Please enter a customer email');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Diagnosing...';
+            result.className = 'result info';
+            result.innerHTML = 'Checking account status...';
+            result.classList.add('show');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/diagnose-customer-login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+
+                if (data.issues && data.issues.length > 0) {
+                    let html = '<strong>Issues Found:</strong><ul>';
+                    data.issues.forEach(issue => {
+                        html += `<li>${issue}</li>`;
+                    });
+                    html += '</ul>';
+                    
+                    if (data.recommendations && data.recommendations.length > 0) {
+                        html += '<strong>Recommendations:</strong><ul>';
+                        data.recommendations.forEach(rec => {
+                            html += `<li>${rec}</li>`;
+                        });
+                        html += '</ul>';
+                    }
+
+                    if (!data.canLogin) {
+                        html += '<p><strong>Click "Fix Account" button to resolve these issues.</strong></p>';
+                    }
+
+                    result.className = 'result error show';
+                    result.innerHTML = html;
+                } else if (data.canLogin) {
+                    result.className = 'result success show';
+                    result.innerHTML = `
+                        <strong>✅ Account is Ready!</strong>
+                        <div class="credentials">
+                            <div>Email: ${data.email}</div>
+                            <div>Password: demo123</div>
+                        </div>
+                        <p style="margin-top: 10px;">You can now login with these credentials.</p>
+                    `;
+                } else {
+                    result.className = 'result info show';
+                    result.innerHTML = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                result.className = 'result error show';
+                result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🔍 Diagnose Account';
+            }
+        }
+
+        async function fixAccount() {
+            const email = document.getElementById('email').value.trim();
+            const btn = document.getElementById('fixBtn');
+            const result = document.getElementById('result');
+            
+            if (!email) {
+                showResult('error', 'Please enter a customer email');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Fixing...';
+            result.className = 'result info';
+            result.innerHTML = 'Fixing customer account...';
+            result.classList.add('show');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/fix-customer-account`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    result.className = 'result success show';
+                    result.innerHTML = `
+                        <strong>✅ Account Fixed Successfully!</strong>
+                        <div class="credentials">
+                            <div><strong>Email:</strong> ${data.email}</div>
+                            <div><strong>Password:</strong> ${data.password}</div>
+                        </div>
+                        <p style="margin-top: 10px;">You can now login with these credentials.</p>
+                        <p style="margin-top: 5px;"><a href="/login" style="color: #667eea;">Go to Login Page →</a></p>
+                    `;
+                } else {
+                    result.className = 'result error show';
+                    result.innerHTML = `<strong>Error:</strong> ${data.error || 'Failed to fix account'}`;
+                }
+            } catch (error) {
+                result.className = 'result error show';
+                result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '✅ Fix Account';
+            }
+        }
+
+        async function fixAllCustomers() {
+            const btn = event.target;
+            const result = document.getElementById('result');
+            
+            // Check if user is logged in
+            const token = localStorage.getItem('token');
+            if (!token) {
+                showResult('error', 'Please login as admin first, then run this from the browser console.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Fixing all accounts...';
+            result.className = 'result info';
+            result.innerHTML = 'Creating user accounts for all customers... This may take a moment.';
+            result.classList.add('show');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/create-customer-users`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success !== false) {
+                    result.className = 'result success show';
+                    result.innerHTML = `
+                        <strong>✅ All Customer Accounts Fixed!</strong>
+                        <ul>
+                            <li>Created: ${data.created} accounts</li>
+                            <li>Skipped: ${data.skipped} (already exist)</li>
+                        </ul>
+                        <p style="margin-top: 10px;">All customers can now login with password: <strong>demo123</strong></p>
+                    `;
+                } else {
+                    result.className = 'result error show';
+                    result.innerHTML = `<strong>Error:</strong> ${data.error || 'Failed to fix accounts'}`;
+                }
+            } catch (error) {
+                result.className = 'result error show';
+                result.innerHTML = `<strong>Error:</strong> ${error.message}. Make sure you're logged in as admin.`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🔄 Fix ALL Customer Accounts';
+            }
+        }
+
+        async function getCustomerEmails() {
+            const btn = event.target;
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Loading...';
+            result.className = 'result info';
+            result.innerHTML = 'Fetching customer emails...';
+            result.classList.add('show');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/customers`);
+                const customers = await response.json();
+
+                if (customers && customers.length > 0) {
+                    const emails = customers.slice(0, 20).map(c => c.email).join('\n');
+                    result.className = 'result success show';
+                    result.innerHTML = `
+                        <strong>📧 Customer Emails (showing first 20):</strong>
+                        <div class="credentials" style="max-height: 300px; overflow-y: auto; margin-top: 10px;">
+                            ${emails}
+                        </div>
+                        <p style="margin-top: 10px; font-size: 12px;">Copy any email above and paste it in the email field to diagnose/fix.</p>
+                    `;
+                } else {
+                    result.className = 'result info show';
+                    result.innerHTML = 'No customers found.';
+                }
+            } catch (error) {
+                result.className = 'result error show';
+                result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '📧 Get Customer Emails List';
+            }
+        }
+
+        function showResult(type, message) {
+            const result = document.getElementById('result');
+            result.className = `result ${type} show`;
+            result.innerHTML = message;
+        }
+    </script>
+</body>
+</html>
+

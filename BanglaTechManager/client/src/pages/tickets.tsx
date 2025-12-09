@@ -15,6 +15,22 @@ export default function TicketsPage() {
     queryKey: ["/api/tickets"],
   });
 
+  const tabs: { value: string; label: string }[] = [
+    { value: "all", label: "All Tickets" },
+    { value: "new", label: "New" },
+    { value: "open", label: "Open" },
+    { value: "pending", label: "Pending" },
+    { value: "in_progress", label: "In Progress" },
+    { value: "resolved", label: "Resolved" },
+    { value: "closed", label: "Closed" },
+  ];
+
+  const filtered = (status: string | "all") => {
+    if (!tickets) return [];
+    if (status === "all") return tickets;
+    return tickets.filter((t) => t.status === status);
+  };
+
   const formatTicketForCard = (ticket: Ticket) => ({
     id: ticket.id.substring(0, 8),
     title: ticket.title,
@@ -43,81 +59,34 @@ export default function TicketsPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="all" data-testid="tab-all">
-            All Tickets
-          </TabsTrigger>
-          <TabsTrigger value="open" data-testid="tab-open">
-            Open
-          </TabsTrigger>
-          <TabsTrigger value="in_progress" data-testid="tab-in-progress">
-            In Progress
-          </TabsTrigger>
-          <TabsTrigger value="closed" data-testid="tab-closed">
-            Closed
-          </TabsTrigger>
+          {tabs.map((tab) => (
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              data-testid={`tab-${tab.value}`}
+            >
+              {tab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="all" className="space-y-4 mt-6">
-          {isLoading ? (
-            <div className="text-center p-8 text-muted-foreground">Loading tickets...</div>
-          ) : tickets && tickets.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {tickets.map((ticket) => (
-                <TicketCard key={ticket.id} {...formatTicketForCard(ticket)} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center p-8 text-muted-foreground">No tickets found</div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="open" className="space-y-4 mt-6">
-          {isLoading ? (
-            <div className="text-center p-8 text-muted-foreground">Loading tickets...</div>
-          ) : tickets && tickets.filter((t) => t.status === "open").length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {tickets
-                .filter((t) => t.status === "open")
-                .map((ticket) => (
+        {tabs.map((tab) => (
+          <TabsContent key={tab.value} value={tab.value} className="space-y-4 mt-6">
+            {isLoading ? (
+              <div className="text-center p-8 text-muted-foreground">Loading tickets...</div>
+            ) : filtered(tab.value as any).length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filtered(tab.value as any).map((ticket) => (
                   <TicketCard key={ticket.id} {...formatTicketForCard(ticket)} />
                 ))}
-            </div>
-          ) : (
-            <div className="text-center p-8 text-muted-foreground">No open tickets</div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="in_progress" className="space-y-4 mt-6">
-          {isLoading ? (
-            <div className="text-center p-8 text-muted-foreground">Loading tickets...</div>
-          ) : tickets && tickets.filter((t) => t.status === "in_progress").length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {tickets
-                .filter((t) => t.status === "in_progress")
-                .map((ticket) => (
-                  <TicketCard key={ticket.id} {...formatTicketForCard(ticket)} />
-                ))}
-            </div>
-          ) : (
-            <div className="text-center p-8 text-muted-foreground">No tickets in progress</div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="closed" className="space-y-4 mt-6">
-          {isLoading ? (
-            <div className="text-center p-8 text-muted-foreground">Loading tickets...</div>
-          ) : tickets && tickets.filter((t) => t.status === "closed").length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {tickets
-                .filter((t) => t.status === "closed")
-                .map((ticket) => (
-                  <TicketCard key={ticket.id} {...formatTicketForCard(ticket)} />
-                ))}
-            </div>
-          ) : (
-            <div className="text-center p-8 text-muted-foreground">No closed tickets</div>
-          )}
-        </TabsContent>
+              </div>
+            ) : (
+              <div className="text-center p-8 text-muted-foreground">
+                {tab.value === "all" ? "No tickets found" : `No ${tab.label.toLowerCase()} tickets`}
+              </div>
+            )}
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );

@@ -178,6 +178,153 @@ We're working on resolving your issue. Thank you for your patience.
       return false;
     }
   }
+
+  // Customer portal email methods
+  async sendTicketCreatedNotification(ticket: any): Promise<boolean> {
+    try {
+      const tenant = await storage.getTenant(ticket.tenantId);
+      const customer = await storage.getCustomer(ticket.customerId, ticket.tenantId);
+      
+      if (!tenant || !customer) return false;
+
+      // Notify tenant admin
+      const adminUsers = await storage.getUsersByTenant(ticket.tenantId);
+      const admins = adminUsers.filter((u: any) => u.role === "tenant_admin");
+      
+      for (const admin of admins) {
+        await this.sendTicketCreatedEmail(
+          admin.email,
+          ticket.title,
+          ticket.id,
+          customer.name
+        );
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error sending ticket created notification:", error);
+      return false;
+    }
+  }
+
+  async sendMessageNotification(ticket: any, message: any): Promise<boolean> {
+    try {
+      if (!ticket.assigneeId) return false;
+      
+      const assignee = await storage.getUser(ticket.assigneeId);
+      if (!assignee) return false;
+
+      const customer = await storage.getCustomer(ticket.customerId, ticket.tenantId);
+      const subject = `New message on ticket: ${ticket.title}`;
+      const body = `
+Hello ${assignee.name},
+
+You have received a new message on ticket "${ticket.title}" from ${customer?.name || "Customer"}.
+
+Message: ${message.body.substring(0, 200)}${message.body.length > 200 ? "..." : ""}
+
+Please respond to the ticket.
+      `;
+
+      return await this.sendEmail({
+        to: assignee.email,
+        subject,
+        body,
+        html: `
+          <h2>New Message on Ticket</h2>
+          <p>Hello <strong>${assignee.name}</strong>,</p>
+          <p>You have received a new message on ticket <strong>"${ticket.title}"</strong> from ${customer?.name || "Customer"}.</p>
+          <p><strong>Message:</strong> ${message.body}</p>
+          <p>Please respond to the ticket.</p>
+        `,
+      });
+    } catch (error) {
+      console.error("Error sending message notification:", error);
+      return false;
+    }
+  }
+
+  async sendCallRequestNotification(call: any): Promise<boolean> {
+    try {
+      const tenant = await storage.getTenant(call.tenantId);
+      const customer = await storage.getCustomer(call.customerId, call.tenantId);
+      
+      if (!tenant || !customer) return false;
+
+      // Notify tenant admin and agents
+      const users = await storage.getUsersByTenant(call.tenantId);
+      const agents = users.filter((u: any) => 
+        u.role === "tenant_admin" || u.role === "support_agent"
+      );
+      
+      const subject = `Call Request from ${customer.name}`;
+      const body = `
+A customer has requested a call:
+Customer: ${customer.name}
+Phone: ${customer.phone || "N/A"}
+${call.metadata?.scheduledAt ? `Scheduled for: ${new Date(call.metadata.scheduledAt).toLocaleString()}` : "Immediate call requested"}
+${call.notes ? `Notes: ${call.notes}` : ""}
+      `;
+
+      for (const agent of agents) {
+        await this.sendEmail({
+          to: agent.email,
+          subject,
+          body,
+          html: `
+            <h2>Call Request</h2>
+            <p>A customer has requested a call:</p>
+            <p><strong>Customer:</strong> ${customer.name}</p>
+            <p><strong>Phone:</strong> ${customer.phone || "N/A"}</p>
+            ${call.metadata?.scheduledAt ? `<p><strong>Scheduled for:</strong> ${new Date(call.metadata.scheduledAt).toLocaleString()}</p>` : "<p><strong>Type:</strong> Immediate call requested</p>"}
+            ${call.notes ? `<p><strong>Notes:</strong> ${call.notes}</p>` : ""}
+          `,
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error sending call request notification:", error);
+      return false;
+    }
+  }
+
+  async sendFeedbackNotification(ticket: any, feedback: any): Promise<boolean> {
+    try {
+      const tenant = await storage.getTenant(ticket.tenantId);
+      if (!tenant) return false;
+
+      // Notify tenant admin
+      const adminUsers = await storage.getUsersByTenant(ticket.tenantId);
+      const admins = adminUsers.filter((u: any) => u.role === "tenant_admin");
+      
+      const subject = `Feedback received for ticket: ${ticket.title}`;
+      const body = `
+Feedback has been received for ticket "${ticket.title}":
+Rating: ${feedback.rating}/5
+${feedback.comment ? `Comment: ${feedback.comment}` : ""}
+      `;
+
+      for (const admin of admins) {
+        await this.sendEmail({
+          to: admin.email,
+          subject,
+          body,
+          html: `
+            <h2>Feedback Received</h2>
+            <p>Feedback has been received for ticket <strong>"${ticket.title}"</strong>:</p>
+            <p><strong>Rating:</strong> ${feedback.rating}/5</p>
+            ${feedback.comment ? `<p><strong>Comment:</strong> ${feedback.comment}</p>` : ""}
+          `,
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error sending feedback notification:", error);
+      return false;
+    }
+  }
 }
 
 export const emailService = new EmailService();

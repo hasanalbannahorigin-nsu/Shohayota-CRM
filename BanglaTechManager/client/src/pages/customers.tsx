@@ -18,7 +18,7 @@ export default function CustomersPage() {
         c.name,
         c.email,
         c.phone || "",
-        c.company || "",
+        (c as any).companyName || "",
         c.status,
       ]),
     ]

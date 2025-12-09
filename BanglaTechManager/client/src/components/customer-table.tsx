@@ -97,7 +97,7 @@ export function CustomerTable({ customers = [], isLoading }: CustomerTableProps)
                   <span className="text-sm font-mono">{customer.phone}</span>
                 </div>
               </TableCell>
-              <TableCell>{customer.company}</TableCell>
+              <TableCell>{(customer as any).companyName || "—"}</TableCell>
               <TableCell>
                 <Badge
                   variant={customer.status === "active" ? "default" : "secondary"}

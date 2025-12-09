@@ -13,10 +13,9 @@ import type { Ticket } from "@shared/schema";
 
 interface Message {
   id: string;
-  content: string;
+  body: string;
   senderId: string;
   timestamp: string;
-  senderName: string;
 }
 
 export default function MessagesNewPage() {
@@ -66,12 +65,15 @@ export default function MessagesNewPage() {
     messageMutation.mutate(messageInput);
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
+  const getInitials = (value: string) => {
+    if (!value) return "NA";
+    return value
+      .split(/[\s@._-]+/)
+      .filter(Boolean)
       .map((n) => n[0])
       .join("")
-      .toUpperCase();
+      .toUpperCase()
+      .slice(0, 3);
   };
 
   const selectedTicket = tickets.find((t) => t.id === selectedTicketId);
@@ -145,16 +147,16 @@ export default function MessagesNewPage() {
                         data-testid={`message-${msg.id}`}
                       >
                         <Avatar className="h-8 w-8">
-                          <AvatarFallback>
-                            {getInitials(msg.senderName)}
-                          </AvatarFallback>
+                            <AvatarFallback>
+                              {getInitials(msg.senderId)}
+                            </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="bg-muted rounded-lg p-3">
                             <p className="text-xs font-medium text-muted-foreground">
-                              {msg.senderName}
+                              {msg.senderId || "Unknown sender"}
                             </p>
-                            <p className="text-sm mt-1">{msg.content}</p>
+                            <p className="text-sm mt-1">{msg.body}</p>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
                             {new Date(msg.timestamp).toLocaleTimeString()}

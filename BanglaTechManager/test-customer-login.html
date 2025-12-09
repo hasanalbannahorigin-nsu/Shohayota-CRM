@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Customer Login</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; }
+        input { width: 300px; padding: 8px; margin: 10px 0; }
+        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test Customer Login</h1>
+    
+    <div>
+        <label>Customer Email:</label><br>
+        <input type="email" id="email" placeholder="sufia.begum9@company.com" />
+        <button onclick="testLogin()">Test Login</button>
+        <button onclick="getCustomerEmails()">Get Sample Emails</button>
+    </div>
+    
+    <div id="result"></div>
+
+    <script>
+        async function testLogin() {
+            const email = document.getElementById('email').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!email) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = 'Please enter an email';
+                return;
+            }
+
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                // Test the account
+                const testRes = await fetch('/api/test-customer-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const testData = await testRes.json();
+
+                // Try actual login
+                const loginRes = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password: 'demo123' })
+                });
+                const loginData = await loginRes.json();
+
+                let html = '<h3>Test Results:</h3><pre>' + JSON.stringify(testData, null, 2) + '</pre>';
+                
+                if (loginRes.ok && loginData.token) {
+                    html += '<div class="success" style="margin-top: 10px; padding: 10px;"><strong>✅ LOGIN SUCCESS!</strong><br>Token: ' + loginData.token.substring(0, 50) + '...</div>';
+                } else {
+                    html += '<div class="error" style="margin-top: 10px; padding: 10px;"><strong>❌ LOGIN FAILED</strong><br>Error: ' + (loginData.error || 'Unknown error') + '</div>';
+                }
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        async function getCustomerEmails() {
+            try {
+                const res = await fetch('/api/customers');
+                const customers = await res.json();
+                
+                if (customers && customers.length > 0) {
+                    const emails = customers.slice(0, 10).map(c => c.email).join('\n');
+                    document.getElementById('email').value = customers[0].email;
+                    document.getElementById('result').className = 'result info';
+                    document.getElementById('result').innerHTML = 
+                        '<strong>Sample Customer Emails (first 10):</strong><pre>' + emails + '</pre>';
+                }
+            } catch (error) {
+                document.getElementById('result').className = 'result error';
+                document.getElementById('result').innerHTML = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
+

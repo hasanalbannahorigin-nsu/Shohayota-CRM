@@ -37,11 +37,11 @@ export class AIAssistant {
       let response = "";
       let type: "answer" | "error" | "suggestion" = "answer";
 
-      // Get data from storage
+      // CRITICAL: Use tenant-filtered storage methods for security
       const allTickets = Array.from((storage as any).tickets.values() as Ticket[])
         .filter((t: Ticket) => t.tenantId === this.tenantId);
-      const allCustomers = Array.from((storage as any).customers.values() as Customer[])
-        .filter((c: Customer) => c.tenantId === this.tenantId);
+      // Use storage method that enforces tenant filtering
+      const allCustomers = await storage.getCustomersByTenant(this.tenantId, 1000, 0);
 
       // Check for OPEN TICKETS queries
       if (

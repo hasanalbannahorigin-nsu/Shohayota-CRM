@@ -91,10 +91,10 @@ export default function CustomerDetailPage() {
                   <Phone className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">{customer.phone || "N/A"}</span>
                 </div>
-                {customer.company && (
+                {(customer as any).companyName && (
                   <div className="flex items-center gap-2">
                     <Building className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{customer.company}</span>
+                    <span className="text-sm">{(customer as any).companyName}</span>
                   </div>
                 )}
               </div>

@@ -84,10 +84,101 @@ export async function initializeStorage() {
     await initializeRoleTemplates();
     console.log("✓ Role templates initialized");
     
-    // Check if already seeded
-    if (memStorage.users.size > 0) {
-      console.log("✓ Storage already initialized");
-      return;
+    // Check if already seeded with permanent accounts
+    // If we have exactly 250 customers, assume permanent seed was run
+    const customerCount = memStorage.customers?.size || 0;
+    if (customerCount === 250) {
+      console.log("✓ Permanent accounts detected (250 customers)");
+      // Just ensure all customers have user accounts
+      const allCustomers = Array.from(memStorage.customers.values());
+      let created = 0;
+      let skipped = 0;
+      
+      for (const customer of allCustomers) {
+        try {
+          const existingUser = await memStorage.getUserByEmail(customer.email);
+          if (existingUser && existingUser.role === "customer" && (existingUser as any).customerId === customer.id && existingUser.passwordHash) {
+            skipped++;
+            continue;
+          }
+          if (existingUser && (existingUser.role !== "customer" || (existingUser as any).customerId !== customer.id)) {
+            memStorage.users.delete(existingUser.id);
+          }
+          await memStorage.createCustomerUser(customer.tenantId, customer.id, customer.email, "demo123", customer.name);
+          created++;
+        } catch (error: any) {
+          // Continue
+        }
+      }
+      if (created > 0) {
+        console.log(`✓ Ensured customer accounts: Created ${created}, Already exist: ${skipped}`);
+      }
+      return; // Don't reseed if permanent accounts exist
+    }
+    
+    // Check if already seeded (old random system)
+    if (memStorage.users.size > 0 || memStorage.customers.size > 0) {
+      console.log("⚠️  Storage already initialized. Ensuring all customers have user accounts...");
+      
+      // CRITICAL: Ensure ALL customers have user accounts
+      // This runs every time the server starts to fix any missing accounts
+      const allCustomers = Array.from(memStorage.customers.values());
+      
+      if (allCustomers.length > 0) {
+        let created = 0;
+        let skipped = 0;
+        let errors = 0;
+        
+        for (const customer of allCustomers) {
+          try {
+            // Check if user already exists with correct role and customerId
+            const existingUser = await memStorage.getUserByEmail(customer.email);
+            
+            if (existingUser && existingUser.role === "customer" && (existingUser as any).customerId === customer.id && existingUser.passwordHash) {
+              // User exists and is correctly configured
+              skipped++;
+              continue;
+            }
+            
+            // User doesn't exist or is misconfigured - create or recreate
+            if (existingUser && (existingUser.role !== "customer" || (existingUser as any).customerId !== customer.id)) {
+              // Delete incorrect user account
+              memStorage.users.delete(existingUser.id);
+              console.log(`[INIT] Removed incorrect user account for ${customer.email}`);
+            }
+            
+            // Create correct user account
+            await memStorage.createCustomerUser(
+              customer.tenantId,
+              customer.id,
+              customer.email,
+              "demo123",
+              customer.name
+            );
+            created++;
+            
+            if (created % 10 === 0 || created === 1) {
+              console.log(`  ✓ Created customer user account ${created}/${allCustomers.length}: ${customer.email}`);
+            }
+          } catch (error: any) {
+            errors++;
+            if (errors <= 5) {
+              console.log(`  ⚠️  Failed to create user for ${customer.email}: ${error.message}`);
+            }
+          }
+        }
+        
+        if (created > 0 || skipped > 0) {
+          console.log(`✅ Customer accounts verified: Created ${created}, Already exist: ${skipped}, Errors: ${errors}`);
+        } else {
+          console.log("✓ All customer accounts already exist");
+        }
+        
+        // If we already have data, don't reseed - just ensure accounts exist
+        if (memStorage.users.size > 0 && memStorage.tenants.size > 0) {
+          return;
+        }
+      }
     }
 
     // Define multiple tenants with different companies
@@ -144,16 +235,40 @@ export async function initializeStorage() {
         const lastName = getRandomElement(lastNames);
         const company = getRandomElement(companies);
         
+        // CRITICAL: Normalize email (lowercase, trim) when creating customer
+        const customerEmail = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${totalCustomersCreated + i}@company.com`.trim().toLowerCase();
         const customer = await memStorage.createCustomer({
           tenantId: tenant.id,
           name: `${firstName} ${lastName}`,
-          email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${totalCustomersCreated + i}@company.com`,
+          email: customerEmail,
           phone: generatePhone(),
           company: `${company} (${tenantConfig.city} Div ${i % 5 + 1})`,
           status: getRandomElement(statuses),
         });
         createdCustomers.push(customer);
+        
+        // CRITICAL: Create user account for EVERY customer automatically
+        // All customers get login access with password "demo123"
+        try {
+          await memStorage.createCustomerUser(
+            tenant.id,
+            customer.id,
+            customer.email,
+            "demo123",
+            customer.name
+          );
+          if (i === 0 || (i + 1) % 10 === 0) {
+            console.log(`✅ Created customer user account ${i + 1}/${numCustomers}: ${customer.email}`);
+          }
+        } catch (error: any) {
+          // User might already exist, continue
+          if (!error.message?.includes("already exists")) {
+            console.log(`⚠️  Failed to create user for ${customer.email}: ${error.message}`);
+          }
+        }
       }
+      
+      console.log(`✅ Created ${createdCustomers.length} customer user accounts for ${tenantConfig.name}`);
 
       // Create tickets for each customer
       for (let i = 0; i < createdCustomers.length; i++) {

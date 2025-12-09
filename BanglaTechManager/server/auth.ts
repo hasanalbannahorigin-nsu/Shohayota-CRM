@@ -16,7 +16,10 @@ export interface AuthenticatedUser {
   email: string;
   name: string;
   tenantId: string;
+  // Provide snake_case alias for middleware that expects tenant_id
+  tenant_id?: string;
   role: string;
+  customerId?: string; // For customer role users, links to customers table
 }
 
 declare global {
@@ -90,7 +93,22 @@ export async function authenticate(
     return;
   }
 
-  req.user = user;
+  // Ensure required fields are present for downstream handlers
+  const tenantId = user.tenantId ?? (user as any).tenant_id;
+  if (!user.role || !tenantId) {
+    res.status(401).json({ error: "Invalid token payload" });
+    return;
+  }
+
+  // Guarantee both tenantId and tenant_id are present for downstream handlers
+  // Also ensure customerId is preserved for customer users
+  req.user = {
+    ...user,
+    role: user.role,
+    tenantId: tenantId,
+    tenant_id: tenantId,
+    customerId: user.customerId || (user as any).customerId, // Preserve customerId
+  };
   next();
 }
 
@@ -143,6 +161,38 @@ export function requireRole(...roles: string[]) {
 
     next();
   };
+}
+
+// Middleware to require customer role and ensure customerId exists
+export function requireCustomer(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  // Ensure JSON response
+  res.setHeader("Content-Type", "application/json");
+
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  if (req.user.role !== "customer") {
+    res.status(403).json({ error: "This endpoint is only available for customers" });
+    return;
+  }
+
+  if (!req.user.customerId) {
+    console.error("[AUTH] Customer user missing customerId:", {
+      userId: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+    });
+    res.status(403).json({ error: "Customer account not properly configured. Please contact support." });
+    return;
+  }
+
+  next();
 }
 
 // Middleware to enforce strict tenant isolation

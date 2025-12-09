@@ -42,7 +42,12 @@ export default function LoginPage() {
         description: `Welcome back, ${data.user.name}!`,
       });
 
-      setLocation("/");
+      // CRITICAL: Redirect customers to customer dashboard, others to main dashboard
+      if (data.user.role === "customer") {
+        setLocation("/customer/dashboard");
+      } else {
+        setLocation("/");
+      }
     } catch (error: any) {
       toast({
         title: "Login failed",

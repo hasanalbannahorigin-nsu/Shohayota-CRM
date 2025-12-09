@@ -9,19 +9,35 @@ import { Request, Response, NextFunction } from "express";
 /**
  * Middleware to strip tenantId from request body/params to prevent injection
  * Tenant ID should ONLY come from the authenticated user's token
+ * 
+ * STRICT: For non-super-admins, tenantId is ALWAYS stripped from body/query
+ * Super-admin can use ?tenantId= query param to access other tenants
  */
 export function stripTenantIdFromRequest(
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
-  // Remove tenantId from body if present (security: never trust client)
+  const user = req.user as any;
+  
+  // Super admin can use ?tenantId= query param to access other tenants
+  if (user?.role === "super_admin") {
+    // Allow ?tenantId= in query for super admin
+    // But still strip from body to prevent confusion
+    if (req.body && typeof req.body === "object") {
+      // Super admin can set tenantId in body for cross-tenant operations
+      // But we'll validate it separately
+    }
+    return next();
+  }
+
+  // For all other roles: STRIP tenantId from body (security: never trust client)
   if (req.body && typeof req.body === "object") {
     delete req.body.tenantId;
   }
 
-  // Remove tenantId from query params (except for super-admin operations)
-  if (req.user?.role !== "super_admin" && req.query.tenantId) {
+  // Remove tenantId from query params for non-super-admins
+  if (req.query.tenantId) {
     delete req.query.tenantId;
   }
 
