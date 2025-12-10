@@ -32,7 +32,6 @@ import oauthRouter from "./src/routes/oauth.controller";
 import webhookRouter from "./src/routes/webhook.ingest";
 import { registerCustomerPortalRoutes } from "./routes/customer-portal";
 import { registerDebugCustomerRoutes } from "./routes/debug-customers";
-import mcpRouter from "./routes/mcp";
 
 function effectiveTenantId(req: any, bodyTenantId?: string | null): string | null {
   const userTenant = req.user?.tenant_id ?? req.user?.tenantId ?? null;
@@ -2878,9 +2877,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register OAuth and webhook routes
   app.use("/api/oauth", oauthRouter);
   app.use("/api/webhooks", webhookRouter);
-  
-  // ==================== MCP (Master Control Plane) Routes ====================
-  app.use("/mcp/api", mcpRouter);
 
   const httpServer = createServer(app);
 

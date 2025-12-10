@@ -4,6 +4,10 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import request from 'supertest';
+import express from 'express';
+import { checkJwt } from '../server/middleware/auth';
+import mcpRouter from '../server/routes/mcpRouter';
 
 const API_BASE = 'http://localhost:5000/mcp/api';
 

@@ -13,7 +13,6 @@ import {
   Shield,
   Brain,
   FileText,
-  Activity,
   UserCog,
   Plug,
 } from "lucide-react";
@@ -119,21 +118,28 @@ const menuItems = [
 export const AppSidebar = memo(function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
-  const isSuperAdmin = useMemo(() => user?.role === "super_admin", [user?.role]);
+  // Normalize roles to support both single role string and roles array (Keycloak/OAuth)
+  const userRoles = useMemo(() => {
+    const rolesArray = (user as any)?.roles;
+    if (Array.isArray(rolesArray) && rolesArray.length > 0) return rolesArray;
+    return user?.role ? [user.role] : [];
+  }, [user]);
+  const isSuperAdmin = useMemo(
+    () => userRoles.includes("super_admin") || user?.role === "super_admin",
+    [userRoles, user?.role]
+  );
 
   // Filter menu items based on user role
   const allMenuItems = useMemo(() => {
-    const userRole = user?.role;
-    
     // For customers, only show customer dashboard
-    if (userRole === "customer") {
+    if (userRoles.includes("customer")) {
       return menuItems.filter((item) => item.roles?.includes("customer") || item.title === "My Dashboard");
     }
     
     // For other roles, filter by allowed roles
     const filtered = menuItems.filter((item) => {
       if (!item.roles) return true; // Show items without role restrictions
-      return item.roles.includes(userRole || "");
+      return item.roles.some((role) => userRoles.includes(role));
     });
     
     // Add super-admin menu item if user is super admin
@@ -172,7 +178,7 @@ export const AppSidebar = memo(function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={location === item.url}
+                    isActive={location === item.url || location.startsWith(item.url)}
                     data-testid={`link-${item.title.toLowerCase()}`}
                   >
                     <Link href={item.url}>

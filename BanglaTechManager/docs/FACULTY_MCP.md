@@ -64,23 +64,31 @@ The Master Control Plane (MCP) is a secure admin console for managing the entire
 
 #### Option 2: Using Local JWT (Development)
 
-For local testing without Keycloak, you can create a test JWT token:
+For local testing without Keycloak, generate a test token:
 
 ```bash
-# Use the test token generator script
-node scripts/generate-platform-admin-token.js
+TEST_JWT_SECRET=your-secret node scripts/generate-test-token.js "" "platform_admin"
 ```
 
-Or manually create a token with:
-```json
-{
-  "sub": "platform-admin-1",
-  "email": "platform-admin@test.com",
-  "name": "Platform Admin",
-  "roles": ["platform_admin"],
-  "tenant_id": "platform"
-}
+Copy the token and paste it in browser console:
+
+```javascript
+localStorage.setItem('auth_token', '<PASTED_TOKEN>');
 ```
+
+## Running Migrations
+
+Before using MCP, run the database migrations:
+
+```bash
+export DATABASE_URL="postgres://user:password@localhost:5432/database"
+node scripts/run-migrations.js
+```
+
+This will create the required tables:
+- `tenants`
+- `mcp_audit_logs`
+- `tenant_feature_flags`
 
 ## Accessing MCP
 
@@ -162,12 +170,6 @@ curl -X POST "http://localhost:5000/mcp/api/tenants/<TENANT_ID>/feature-flags" \
       "advanced_analytics": true
     }
   }'
-```
-
-#### List Background Jobs
-```bash
-curl -X GET "http://localhost:5000/mcp/api/jobs" \
-  -H "Authorization: Bearer <PLATFORM_ADMIN_TOKEN>"
 ```
 
 ### Tenant-Scoped Endpoints (Platform Admin or Tenant Admin)
@@ -289,16 +291,6 @@ Tabs:
 - Check database connection
 - Verify tenant exists
 - Review server logs for detailed error
-
-## Database Schema
-
-MCP uses the following tables:
-
-- `tenants`: Tenant information
-- `mcp_audit_logs`: Audit trail of MCP actions
-- `tenant_feature_flags`: Feature flags per tenant
-
-See `migrations/20251210_mcp_tables.sql` for schema details.
 
 ## Testing
 

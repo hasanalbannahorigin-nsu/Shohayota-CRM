@@ -113,9 +113,18 @@ export async function authenticate(
   }
 
   // Ensure required fields are present for downstream handlers
+  // Super admin might not have tenantId, which is OK for cross-tenant access
   const tenantId = user.tenantId ?? (user as any).tenant_id;
-  if (!user.role || !tenantId) {
+  
+  // For super_admin, tenantId is optional (they can access all tenants)
+  if (!user.role) {
     res.status(401).json({ error: "Invalid token payload" });
+    return;
+  }
+  
+  // For non-super-admin users, tenantId is required
+  if (user.role !== 'super_admin' && !tenantId) {
+    res.status(401).json({ error: "Invalid token payload - tenantId required" });
     return;
   }
 
@@ -124,8 +133,8 @@ export async function authenticate(
   req.user = {
     ...user,
     role: user.role,
-    tenantId: tenantId,
-    tenant_id: tenantId,
+    tenantId: tenantId || (user.role === 'super_admin' ? 'system' : undefined),
+    tenant_id: tenantId || (user.role === 'super_admin' ? 'system' : undefined),
     customerId: user.customerId || (user as any).customerId, // Preserve customerId
   };
   next();

@@ -183,10 +183,34 @@ export async function initializeStorage() {
 
     // Define multiple tenants with different companies
     const tenantConfigs = [
-      { name: "Dhaka Tech Solutions", email: "admin@dhakatech.com", city: "Dhaka" },
-      { name: "Chittagong Tech Hub", email: "admin@chittagong.tech.com", city: "Chittagong" },
-      { name: "Sylhet Software House", email: "admin@sylhet.software.com", city: "Sylhet" },
-      { name: "Khulna IT Systems", email: "admin@khulna.it.com", city: "Khulna" },
+      { 
+        name: "Dhaka Tech Solutions", 
+        email: "admin@dhakatech.com", 
+        city: "Dhaka",
+        domain: "dhakatech.com",
+        plan: "pro"
+      },
+      { 
+        name: "Chittagong Tech Hub", 
+        email: "admin@chittagong.tech.com", 
+        city: "Chittagong",
+        domain: "chittagong.tech.com",
+        plan: "basic"
+      },
+      { 
+        name: "Sylhet Software House", 
+        email: "admin@sylhet.software.com", 
+        city: "Sylhet",
+        domain: "sylhet.software.com",
+        plan: "enterprise"
+      },
+      { 
+        name: "Khulna IT Systems", 
+        email: "admin@khulna.it.com", 
+        city: "Khulna",
+        domain: "khulna.it.com",
+        plan: "basic"
+      },
     ];
 
     const statuses: ("active" | "inactive")[] = ["active", "inactive"];
@@ -201,13 +225,21 @@ export async function initializeStorage() {
     for (let t = 0; t < tenantConfigs.length; t++) {
       const tenantConfig = tenantConfigs[t];
       
-      // Create tenant
+      // Create tenant with required fields
       const slug = tenantConfig.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").substring(0, 100);
       const tenant = await memStorage.createTenant({
         name: tenantConfig.name,
         slug: slug,
         contactEmail: tenantConfig.email,
-      });
+        domain: tenantConfig.domain,
+        plan: tenantConfig.plan || "basic",
+        status: "active",
+        metadata: {
+          city: tenantConfig.city,
+          region: "Bangladesh",
+          timezone: "Asia/Dhaka"
+        }
+      } as any);
 
       // Create users for this tenant
       const adminUser = await memStorage.createUser({

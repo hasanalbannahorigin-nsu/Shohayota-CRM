@@ -164,6 +164,12 @@ export class MemStorage implements IStorage {
 
   async createTenant(tenant: InsertTenant): Promise<Tenant> {
     const tenantData = tenant as any;
+    // Store domain in metadata if provided
+    const metadata = tenantData.metadata || {};
+    if (tenantData.domain && !metadata.domain) {
+      metadata.domain = tenantData.domain;
+    }
+    
     const newTenant: Tenant = {
       id: this.generateId(),
       name: tenant.name,
@@ -178,7 +184,7 @@ export class MemStorage implements IStorage {
       quotaMaxApiCalls: tenantData.quotaMaxApiCalls || 10000,
       billingState: tenantData.billingState || "trial",
       trialEndsAt: tenantData.trialEndsAt || null,
-      metadata: tenantData.metadata || {},
+      metadata: metadata,
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,

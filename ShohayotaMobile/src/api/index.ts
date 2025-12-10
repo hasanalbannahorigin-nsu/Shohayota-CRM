@@ -1,14 +1,27 @@
 import axios from "axios";
+import { Platform } from "react-native";
 
 // --- IMPORTANT ---
-// Emulator -> Backend on Windows host:
-const BASE = "http://10.0.2.2:5000";
+// Platform-aware API base URL
+let BASE = "http://localhost:5000";
 
-// If real device:
-// const BASE = "http://YOUR_PC_IP:5000";
+if (Platform.OS === "android") {
+  // Android emulator -> Backend on Windows host:
+  BASE = "http://10.0.2.2:5000";
+  // If real device, use your PC's IP address:
+  // BASE = "http://YOUR_PC_IP:5000";
+} else if (Platform.OS === "ios") {
+  // iOS simulator -> Backend on localhost:
+  BASE = "http://localhost:5000";
+  // If real device, use your PC's IP address:
+  // BASE = "http://YOUR_PC_IP:5000";
+} else if (Platform.OS === "web") {
+  // Web -> Backend on localhost:
+  BASE = "http://localhost:5000";
+}
 
 // If using ngrok:
-// const BASE = "https://xxxxx.ngrok.io";
+// BASE = "https://xxxxx.ngrok.io";
 
 export const api = axios.create({
   baseURL: BASE + "/api",
