@@ -37,27 +37,22 @@ export function initWebSocketServer(httpServer: Server) {
     noServer: true,
   });
 
-  // Handle HTTP upgrade requests - this MUST be done before Vite middleware
-  // We need to capture upgrades early but let Vite handle its own HMR WebSockets
-  const existingUpgrade = httpServer.listeners('upgrade');
-  httpServer.removeAllListeners('upgrade');
-  
+  // Handle HTTP upgrade requests for AI chat WebSocket
+  // This listener runs first to catch /ws/ai-chat before Vite middleware
   httpServer.on('upgrade', (request, socket, head) => {
     const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
     
-    console.log(`🔌 WebSocket upgrade request for: ${pathname}`);
-    
     if (pathname === '/ws/ai-chat') {
+      console.log(`🔌 WebSocket upgrade request for: ${pathname}`);
       // Handle our AI chat WebSocket
       wss!.handleUpgrade(request, socket, head, (ws) => {
         wss!.emit('connection', ws, request);
       });
-    } else {
-      // Let other upgrades pass through to existing handlers (Vite HMR, etc.)
-      existingUpgrade.forEach((listener: any) => {
-        listener(request, socket, head);
-      });
+      // Don't let the request continue to other handlers
+      return;
     }
+    // For all other paths, let the request continue to Vite HMR or other handlers
+    // We don't need to do anything - the request will naturally continue
   });
 
   wss.on('connection', async (ws: WebSocket, req) => {
