@@ -34,25 +34,67 @@ export default function AIAssistantFinal() {
 
   const aiQueryMutation = useMutation({
     mutationFn: async (query: string) => {
-      const res = await apiRequest("POST", "/api/ai/query", { query });
-      if (!res.ok) {
-        throw new Error("Failed to get AI response");
+      // Try new endpoint first, fallback to old one for compatibility
+      try {
+        const res = await apiRequest("POST", "/api/v1/ai/chat", { query });
+        if (!res.ok) {
+          throw new Error("Failed to get AI response");
+        }
+        const data = await res.json();
+        
+        // Handle new response format: { success: true, data: { text: "...", provider: "gemini" | "rule" } }
+        if (data.success && data.data) {
+          return {
+            content: data.data.text,
+            provider: data.data.provider || "gemini",
+            type: "answer" as const,
+          };
+        }
+        
+        // Fallback to old format if needed
+        return data;
+      } catch (error) {
+        // Fallback to legacy endpoint
+        const res = await apiRequest("POST", "/api/ai/query", { query });
+        if (!res.ok) {
+          throw new Error("Failed to get AI response");
+        }
+        return res.json();
       }
-      return res.json();
     },
     onSuccess: (aiResponse: any) => {
-      if (!aiResponse || !aiResponse.content) {
+      // Handle both new and old response formats
+      let content = "";
+      let type: "answer" | "error" | "suggestion" = "answer";
+      
+      if (aiResponse.content) {
+        // Old format
+        content = aiResponse.content;
+        type = aiResponse.type || "answer";
+      } else if (typeof aiResponse === "string") {
+        // Direct string response
+        content = aiResponse;
+      } else {
         throw new Error("Invalid response from AI");
       }
 
       const aiMsg: AIMessage = {
         id: aiResponse.id || String(messages.length + 2),
-        content: aiResponse.content,
+        content: content,
         sender: "ai",
         timestamp: new Date().toLocaleTimeString(),
-        type: aiResponse.type || "answer",
+        type: type,
       };
       setMessages((prev) => [...prev, aiMsg]);
+      
+      // Show provider badge if available
+      if (aiResponse.provider) {
+        toast({
+          title: "AI Response",
+          description: `Powered by ${aiResponse.provider === "gemini" ? "Gemini AI" : "Rule-based"}`,
+          variant: "default",
+        });
+      }
     },
     onError: (error: any) => {
       const errorMsg: AIMessage = {
@@ -148,7 +190,9 @@ export default function AIAssistantFinal() {
                   <Bot className="h-5 w-5 text-primary" />
                   <CardTitle>AI Assistant</CardTitle>
                 </div>
-                <Badge variant="outline">Always Online</Badge>
+                <Badge variant="outline">
+                  {aiQueryMutation.isPending ? "Thinking..." : "Powered by Gemini AI"}
+                </Badge>
               </div>
             </CardHeader>
 

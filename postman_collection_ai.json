@@ -1,0 +1,18 @@
+{
+    "info": { "name": "Shohayota AI", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+    "item": [
+      {
+        "name": "AI Chat",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Authorization", "value": "Bearer <JWT_WITH_TENANT_ID>" },
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": { "mode": "raw", "raw": "{ \"query\": \"Summarize my recent tickets\" }" },
+          "url": { "raw": "http://localhost:5000/api/v1/ai/chat", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api","v1","ai","chat"] }
+        }
+      }
+    ]
+  }
+  

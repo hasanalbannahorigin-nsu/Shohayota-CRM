@@ -21,6 +21,8 @@ A production-ready, multi-tenant Customer Relationship Management (CRM) system b
 - **Analytics Dashboard**: Metrics for customer growth and agent performance
 - **Security Middleware**: Rate limiting, security headers, CORS protection
 - **Bangladeshi Support**: Phone validation, names, and formats
+- **AI Assistant with Gemini**: Powered by Google Gemini LLM for intelligent CRM interactions
+- **Model Context Protocol (MCP)**: Standardized protocol for AI assistants to access CRM data and tools
 
 ### 🛡️ Security
 - Bcrypt password hashing (10 rounds)
@@ -249,4 +251,4 @@ Contributions welcome! Please ensure:
 
 ---
 
-**Built with care for Bangladesh's business community** 🇧🇩
+

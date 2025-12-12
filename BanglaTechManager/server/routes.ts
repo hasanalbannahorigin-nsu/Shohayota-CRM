@@ -32,6 +32,10 @@ import oauthRouter from "./src/routes/oauth.controller";
 import webhookRouter from "./src/routes/webhook.ingest";
 import { registerCustomerPortalRoutes } from "./routes/customer-portal";
 import { registerDebugCustomerRoutes } from "./routes/debug-customers";
+import { handleAiChat } from "./ai-assistant";
+import { checkJwt } from "./middleware/auth";
+import { tenantMiddleware } from "./middleware/tenant";
+import { registerMcpProtocolRoutes } from "./routes/mcp-protocol";
 
 function effectiveTenantId(req: any, bodyTenantId?: string | null): string | null {
   const userTenant = req.user?.tenant_id ?? req.user?.tenantId ?? null;
@@ -708,6 +712,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Logout failed" });
     }
   });
+
+  // AI Chat (Gemini-backed with tenant isolation)
+  app.post("/api/v1/ai/chat", checkJwt, tenantMiddleware, handleAiChat);
+
+  // ==================== MCP Protocol Routes ====================
+  // Model Context Protocol endpoints for AI assistants
+  registerMcpProtocolRoutes(app);
 
   // ==================== Customer Routes ====================
   
@@ -1543,54 +1554,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== AI Assistant Routes ====================
 
   app.post("/api/ai/query", authenticate, requireRole("tenant_admin", "support_agent"), enforceStrictTenantIsolation, async (req, res) => {
-    try {
-      const tenantId = getRequestTenantId(req);
-      
-      if (!tenantId) {
-        return res.status(403).json({ error: "Tenant context required" });
-      }
-
-      const { query } = req.body;
-
-      if (!query || typeof query !== "string") {
-        return res.status(400).json({ 
-          error: "Invalid query. Please provide a text question.",
-          id: Math.random().toString(),
-          content: "❌ I need a valid query to process. Please try again.",
-          sender: "ai",
-          timestamp: new Date(),
-          type: "error"
-        });
-      }
-
-      const trimmedQuery = query.trim();
-      if (trimmedQuery.length === 0) {
-        return res.status(400).json({ 
-          error: "Query cannot be empty.",
-          id: Math.random().toString(),
-          content: "Please ask me something! Type 'help' for available commands.",
-          sender: "ai",
-          timestamp: new Date(),
-          type: "suggestion"
-        });
-      }
-
-      // Import the AI assistant - STRICT: Uses tenantId from request
-      const { createAIAssistant } = await import("./ai-assistant");
-      const aiAssistant = createAIAssistant(tenantId);
-      const aiResponse = await aiAssistant.processQuery(trimmedQuery);
-
-      res.json(aiResponse);
-    } catch (error: any) {
-      console.error("Error processing AI query:", error);
-      res.status(500).json({
-        id: Math.random().toString(),
-        content: `❌ Error: ${error.message || "Failed to process query. Please try again."}`,
-        sender: "ai",
-        timestamp: new Date(),
-        type: "error"
-      });
+    req.body.query = (req.body?.query || req.body?.prompt || "").trim();
+    if (!req.body.query) {
+      return res.status(400).json({ error: "query required" });
     }
+    return handleAiChat(req as any, res as any);
   });
 
   // ==================== Settings/Integration Routes ====================

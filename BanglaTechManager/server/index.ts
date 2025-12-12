@@ -52,6 +52,10 @@ app.use((req, res, next) => {
   await initializeStorage();
   const server = await registerRoutes(app);
   
+  // Initialize WebSocket server for live AI chat
+  const { initWebSocketServer } = await import('./websocket-server');
+  initWebSocketServer(server);
+  
   // Ensure all customer accounts exist after routes are registered
   // This runs after a delay to allow storage to be fully initialized
   setTimeout(async () => {

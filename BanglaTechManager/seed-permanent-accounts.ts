@@ -239,6 +239,94 @@ async function seedPermanentAccounts() {
       console.log(`  ✅ Completed: ${TENANTS[tenantIdx].name} - ${numCustomers} customers`);
     }
 
+    // Create tickets for customers
+    console.log("\n🎫 Creating Tickets...");
+    const ticketTitles = [
+      "Website login issues",
+      "Need help with password reset",
+      "Report generation not working",
+      "Payment processing error",
+      "Email notifications not received",
+      "Dashboard slow to load",
+      "Data export failing",
+      "Mobile app crashes on startup",
+      "Can't access customer portal",
+      "Invoice download not working",
+      "API integration problem",
+      "Calendar sync error",
+      "File upload timeout",
+      "Search not finding results",
+      "Notification settings not saving",
+    ];
+    
+    const descriptions = [
+      "I'm unable to log in to the website. Getting error message when entering credentials.",
+      "Password reset link is not working. Please help me reset my password.",
+      "When trying to generate reports, the system freezes and nothing happens.",
+      "Payment is failing when customers try to complete checkout.",
+      "I'm not receiving any email notifications even though they're enabled.",
+      "The dashboard takes a very long time to load, sometimes over 30 seconds.",
+      "Data export feature returns an error when trying to export CSV files.",
+      "The mobile app crashes immediately after opening on my device.",
+      "I can't access the customer portal even though I have an account.",
+      "Downloading invoices gives an error message.",
+      "Our API integration stopped working after the last update.",
+      "Calendar events are not syncing properly with Google Calendar.",
+      "Large file uploads timeout after a few minutes.",
+      "Search function is not returning results even for existing records.",
+      "Changes to notification settings are not being saved.",
+    ];
+    
+    const statuses = ["open", "in_progress", "closed"] as const;
+    const priorities = ["low", "medium", "high"] as const;
+    const categories = ["bug", "feature", "support"] as const;
+    
+    let totalTicketsCreated = 0;
+    
+    for (let tenantIdx = 0; tenantIdx < TENANTS.length; tenantIdx++) {
+      const tenant = tenantMap[TENANTS[tenantIdx].name];
+      const customers = await storage.getCustomersByTenant(tenant.id, 1000, 0);
+      const users = await storage.getUsersByTenant(tenant.id);
+      const adminUsers = users.filter((u: any) => u.role === "tenant_admin" || u.role === "support_agent");
+      
+      if (adminUsers.length === 0) continue;
+      
+      let ticketsForTenant = 0;
+      
+      // Create 2-3 tickets per customer
+      for (const customer of customers) {
+        const numTickets = Math.floor(Math.random() * 2) + 2; // 2-3 tickets
+        
+        for (let i = 0; i < numTickets; i++) {
+          const title = ticketTitles[Math.floor(Math.random() * ticketTitles.length)];
+          const description = descriptions[Math.floor(Math.random() * descriptions.length)];
+          const status = statuses[Math.floor(Math.random() * statuses.length)];
+          const priority = priorities[Math.floor(Math.random() * priorities.length)];
+          const category = categories[Math.floor(Math.random() * categories.length)];
+          const createdBy = adminUsers[Math.floor(Math.random() * adminUsers.length)].id;
+          
+          try {
+            await storage.createTicket({
+              tenantId: tenant.id,
+              customerId: customer.id,
+              title,
+              description,
+              status,
+              priority,
+              category,
+              createdBy,
+            } as any);
+            ticketsForTenant++;
+            totalTicketsCreated++;
+          } catch (error: any) {
+            // Ignore duplicate errors
+          }
+        }
+      }
+      
+      console.log(`  ✅ ${TENANTS[tenantIdx].name}: ${ticketsForTenant} tickets`);
+    }
+
     // Summary
     console.log("\n" + "=".repeat(60));
     console.log("📊 SEEDING COMPLETE!");
@@ -248,6 +336,7 @@ async function seedPermanentAccounts() {
     console.log(`✅ Tenant Admins: ${TENANTS.length}`);
     console.log(`✅ Support Agents: ${TENANTS.length}`);
     console.log(`✅ Customers: 250`);
+    console.log(`✅ Tickets: ${totalTicketsCreated}`);
     console.log(`✅ Total Users: ${1 + TENANTS.length * 2 + 250} (1 super + ${TENANTS.length} admins + ${TENANTS.length} support + 250 customers)`);
     console.log("\n🔑 All passwords: demo123");
     console.log("\n📧 Sample Customer Emails:");

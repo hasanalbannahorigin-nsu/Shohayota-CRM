@@ -21,6 +21,7 @@ import TicketDetailPage from "@/pages/tickets-detail";
 import MessagesNewPage from "@/pages/messages-new";
 import AnalyticsPage from "@/pages/analytics";
 import AIAssistantFinal from "@/pages/ai-assistant-final";
+import AIAssistantLive from "@/pages/ai-assistant-live";
 import PhoneCallsPage from "@/pages/phone-calls";
 import NotificationsPage from "@/pages/notifications";
 import TenantSettingsPage from "@/pages/tenant-settings";
@@ -45,7 +46,8 @@ function Router() {
       <Route path="/tickets/detail" component={TicketDetailPage} />
       <Route path="/messages-new" component={MessagesNewPage} />
       <Route path="/analytics" component={AnalyticsPage} />
-      <Route path="/ai-assistant-final" component={AIAssistantFinal} />
+      <Route path="/ai-assistant-final" component={AIAssistantLive} />
+      <Route path="/ai-assistant" component={AIAssistantLive} />
       <Route path="/phone-calls" component={PhoneCallsPage} />
       <Route path="/notifications" component={NotificationsPage} />
       <Route path="/tenant-settings" component={TenantSettingsPage} />
