@@ -32,9 +32,32 @@ const clients = new Map<string, ClientConnection>();
  * Initialize WebSocket server
  */
 export function initWebSocketServer(httpServer: Server) {
+  // Use 'noServer' mode and handle upgrade manually to avoid conflicts with Vite
   wss = new WebSocketServer({ 
-    server: httpServer,
-    path: '/ws/ai-chat',
+    noServer: true,
+  });
+
+  // Handle HTTP upgrade requests - this MUST be done before Vite middleware
+  // We need to capture upgrades early but let Vite handle its own HMR WebSockets
+  const existingUpgrade = httpServer.listeners('upgrade');
+  httpServer.removeAllListeners('upgrade');
+  
+  httpServer.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
+    
+    console.log(`🔌 WebSocket upgrade request for: ${pathname}`);
+    
+    if (pathname === '/ws/ai-chat') {
+      // Handle our AI chat WebSocket
+      wss!.handleUpgrade(request, socket, head, (ws) => {
+        wss!.emit('connection', ws, request);
+      });
+    } else {
+      // Let other upgrades pass through to existing handlers (Vite HMR, etc.)
+      existingUpgrade.forEach((listener: any) => {
+        listener(request, socket, head);
+      });
+    }
   });
 
   wss.on('connection', async (ws: WebSocket, req) => {
@@ -45,6 +68,7 @@ export function initWebSocketServer(httpServer: Server) {
     const token = url.searchParams.get('token') || req.headers.authorization?.replace('Bearer ', '');
 
     if (!token) {
+      console.error('❌ WebSocket connection rejected: No token provided');
       ws.close(1008, 'Authentication required');
       return;
     }
@@ -56,6 +80,8 @@ export function initWebSocketServer(httpServer: Server) {
       const tenantId = decoded.tenantId || decoded.tenant_id;
 
       if (!userId || !tenantId) {
+        console.error('❌ WebSocket connection rejected: Invalid token - missing user or tenant info');
+        console.error('Token payload:', { id: decoded.id, userId: decoded.userId, tenantId: decoded.tenantId, tenant_id: decoded.tenant_id });
         ws.close(1008, 'Invalid token: missing user or tenant info');
         return;
       }
@@ -121,8 +147,9 @@ export function initWebSocketServer(httpServer: Server) {
       });
 
     } catch (error: any) {
-      console.error('WebSocket authentication error:', error.message);
-      ws.close(1008, 'Authentication failed');
+      console.error('❌ WebSocket authentication error:', error.message);
+      console.error('Error details:', error);
+      ws.close(1008, `Authentication failed: ${error.message}`);
     }
   });
 

@@ -111,9 +111,12 @@ export default function AIAssistantLive() {
         return;
       }
 
+      // Determine WebSocket protocol
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws/ai-chat?token=${token}`;
+      // Use same host and port as the current page
+      const wsUrl = `${protocol}//${window.location.host}/ws/ai-chat?token=${encodeURIComponent(token)}`;
       
+      console.log('🔌 Attempting WebSocket connection to:', wsUrl.replace(/token=[^&]+/, 'token=***'));
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {

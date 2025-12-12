@@ -53,6 +53,8 @@ app.use((req, res, next) => {
   const server = await registerRoutes(app);
   
   // Initialize WebSocket server for live AI chat
+  // IMPORTANT: This must be done BEFORE Vite middleware setup
+  // to ensure WebSocket upgrades are handled correctly
   const { initWebSocketServer } = await import('./websocket-server');
   initWebSocketServer(server);
   
