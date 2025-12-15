@@ -501,14 +501,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🗺️ Roadmap
 
 - [ ] Enhanced analytics with charts and graphs
-- [ ] Mobile app (React Native)
 - [ ] Advanced reporting and exports
 - [ ] Email integration (Gmail, Outlook)
-- [ ] SMS notifications
-- [ ] WhatsApp integration
 - [ ] Custom workflow automation
 - [ ] Advanced RBAC with fine-grained permissions
-- [ ] API rate limiting per tenant
 - [ ] Multi-language support (Bengali, English)
 
 ---
