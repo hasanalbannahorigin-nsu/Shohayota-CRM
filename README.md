@@ -516,5 +516,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Hasan Al Bannah – Project Creator, Developer, Maintainer
 
-
-For detailed setup instructions, see [SETUP.md](./SETUP.md)
