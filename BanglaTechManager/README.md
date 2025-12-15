@@ -2,7 +2,9 @@
 
 > সহায়তা (Sohayota) means "Support" in Bengali
 
-A production-ready, multi-tenant Customer Relationship Management (CRM) system built for Bangladesh-based businesses with comprehensive ticket management, customer support, business intelligence, and AI-powered assistance features.
+**Sohayota CRM** is a production-ready, enterprise-grade, multi-tenant Customer Relationship Management (CRM) system specifically designed for Bangladesh-based businesses. It provides comprehensive ticket management, customer support, business intelligence, and cutting-edge AI-powered assistance features.
+
+This system enables organizations to efficiently manage customer relationships, track support tickets, collaborate with teams, and leverage artificial intelligence to enhance customer service operations. Built with modern web technologies and best practices, Sohayota CRM offers a scalable, secure, and user-friendly solution for businesses of all sizes.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)](https://reactjs.org/)
@@ -457,24 +459,6 @@ curl -X POST \
 
 See [docs/MCP_PROTOCOL.md](./docs/MCP_PROTOCOL.md) for complete MCP documentation.
 
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Issue**: WebSocket connection fails
-- **Solution**: Ensure server is running and check JWT token is valid
-
-**Issue**: Gemini AI not responding
-- **Solution**: Check `GEMINI_API_KEY` is set in `.env` and is valid
-
-**Issue**: Database connection errors
-- **Solution**: Verify `DATABASE_URL` or PostgreSQL credentials in `.env`
-
-**Issue**: Port 5000 already in use
-- **Solution**: Change `PORT` in `.env` or stop the process using port 5000
-
-**Issue**: Speech recognition not working
-- **Solution**: Use Chrome/Edge browser (best Web Speech API support)
 
 ## 🤝 Contributing
 
@@ -529,6 +513,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ for Bangladesh-based businesses**
+
 
 For detailed setup instructions, see [SETUP.md](./SETUP.md)
